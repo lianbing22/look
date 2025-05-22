@@ -110,7 +110,14 @@ async function init() {
     try {
         // 加载模型
         console.log('正在加载 COCO-SSD 模型...');
-        model = await cocoSsd.load();
+        
+        // 使用timeout确保模型加载不会无限等待
+        const modelPromise = cocoSsd.load();
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('模型加载超时')), 30000)
+        );
+        
+        model = await Promise.race([modelPromise, timeoutPromise]);
         console.log('模型加载完成');
         
         // 启用按钮
@@ -118,9 +125,38 @@ async function init() {
         
         // 加载本地存储的设置
         loadSettings();
+        
+        // 预检查摄像头权限
+        checkCameraAccess();
     } catch (error) {
         console.error('初始化失败:', error);
-        alert('模型加载失败，请检查网络连接并刷新页面重试。');
+        
+        // 显示更具体的错误信息
+        if (error.message === '模型加载超时') {
+            alert('模型加载超时，请检查网络连接并刷新页面重试。');
+        } else if (error.name === 'NotAllowedError') {
+            alert('摄像头访问被拒绝，请授予摄像头访问权限并刷新页面。');
+        } else {
+            alert('初始化失败：' + error.message + '。请刷新页面重试。');
+        }
+        
+        // 尝试仍然启用按钮，让用户可以尝试启动
+        startBtn.disabled = false;
+    }
+}
+
+// 检查摄像头访问
+async function checkCameraAccess() {
+    try {
+        // 仅检查权限，不保留流
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // 立即关闭流
+        stream.getTracks().forEach(track => track.stop());
+        console.log('摄像头权限已获取');
+        return true;
+    } catch (error) {
+        console.warn('摄像头预检查失败:', error);
+        return false;
     }
 }
 

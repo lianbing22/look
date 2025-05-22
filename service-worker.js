@@ -11,8 +11,6 @@ const CACHE_URLS = [
   './admin/admin.css',
   './admin/admin.js',
   './manifest.json',
-  './favicon.ico',
-  './apple-touch-icon.png',
   'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs',
   'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd'
 ];

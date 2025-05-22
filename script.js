@@ -209,6 +209,10 @@ function getOptimalVideoConstraints() {
     
     // 基于设备类型和性能选择最佳视频设置
     let idealWidth, idealHeight;
+    let facingMode = 'environment'; // 默认使用后置摄像头
+    
+    // iOS设备特殊处理
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
     
     if (capabilities.isLowPerformance) {
         // 低性能设备使用较低分辨率
@@ -216,12 +220,12 @@ function getOptimalVideoConstraints() {
         idealHeight = 480;
     } else if (capabilities.isTablet) {
         // 平板设备
-        idealWidth = 1280;
-        idealHeight = 720;
+        idealWidth = 1024;
+        idealHeight = 768;
     } else if (!capabilities.isMobile) {
         // 桌面设备
-        idealWidth = 1920;
-        idealHeight = 1080;
+        idealWidth = 1280;
+        idealHeight = 720;
     } else {
         // 标准移动设备
         idealWidth = 1280;
@@ -233,8 +237,19 @@ function getOptimalVideoConstraints() {
         [idealWidth, idealHeight] = [idealHeight, idealWidth];
     }
     
+    // iOS设备特殊处理
+    if (isIOS) {
+        // iOS设备通常更喜欢更简单的约束
+        return {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: idealWidth, max: 1280 },
+            height: { ideal: idealHeight, max: 720 }
+        };
+    }
+    
+    // Android设备可以接受更具体的约束
     return {
-        facingMode: 'environment', // 使用后置摄像头（如果可用）
+        facingMode: { ideal: facingMode },
         width: { ideal: idealWidth },
         height: { ideal: idealHeight }
     };
@@ -340,6 +355,8 @@ function applySettings(settings) {
 async function startDetection() {
     if (isModelLoading) {
         loadingIndicator.textContent = '模型正在加载，请稍候...';
+        loadingIndicator.style.display = 'block';
+        loadingIndicator.style.opacity = '1';
         return;
     }
     
@@ -347,13 +364,21 @@ async function startDetection() {
     startBtn.disabled = true;
     stopBtn.disabled = false;
     
+    // 显示加载指示器
+    loadingIndicator.textContent = '正在启动摄像头...';
+    loadingIndicator.style.display = 'block';
+    loadingIndicator.style.opacity = '1';
+    
     try {
+        console.log('尝试使用优化的视频约束获取摄像头访问权限');
         // 获取优化的视频约束
         const videoConstraints = getOptimalVideoConstraints();
+        console.log('视频约束:', videoConstraints);
         
         // 获取摄像头权限
         stream = await navigator.mediaDevices.getUserMedia({
-            video: videoConstraints
+            video: videoConstraints,
+            audio: false
         });
         
         // 设置视频源
@@ -366,6 +391,8 @@ async function startDetection() {
             cameraPlaceholder.style.display = 'none';
             
             console.log(`视频分辨率: ${video.videoWidth}x${video.videoHeight}`);
+            loadingIndicator.style.opacity = '0';
+            setTimeout(() => loadingIndicator.style.display = 'none', 300);
         };
         
         // 开始检测循环
@@ -379,33 +406,70 @@ async function startDetection() {
         console.error('摄像头访问错误:', error);
         
         // 尝试降级到基本视频模式
-        if (error.name === 'OverconstrainedError' || error.name === 'NotReadableError') {
-            try {
-                console.log('尝试降级到基本视频模式');
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: true // 使用默认设置
-                });
-                
-                // 设置视频源
-                video.srcObject = stream;
-                
-                // 调整画布大小
-                video.onloadedmetadata = () => {
-                    resizeCanvas();
-                    // 隐藏相机占位符
-                    cameraPlaceholder.style.display = 'none';
-                };
-                
-                // 开始检测循环
-                isDetecting = true;
-                startDetectionLoop();
-                return;
-            } catch (fallbackError) {
-                console.error('降级摄像头访问也失败:', fallbackError);
+        try {
+            console.log('尝试降级到基本视频模式(不带约束)');
+            loadingIndicator.textContent = '重新尝试访问摄像头...';
+            
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: true, // 使用默认设置
+                audio: false
+            });
+            
+            // 设置视频源
+            video.srcObject = stream;
+            
+            // 调整画布大小
+            video.onloadedmetadata = () => {
+                resizeCanvas();
+                // 隐藏相机占位符
+                cameraPlaceholder.style.display = 'none';
+                loadingIndicator.style.opacity = '0';
+                setTimeout(() => loadingIndicator.style.display = 'none', 300);
+            };
+            
+            // 开始检测循环
+            isDetecting = true;
+            startDetectionLoop();
+            saveBtn.disabled = false;
+            return;
+        } catch (fallbackError) {
+            console.error('降级摄像头访问也失败:', fallbackError);
+            
+            // 如果是iOS设备，尝试使用facingMode: "user"（前置摄像头）
+            if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+                try {
+                    console.log('尝试使用iOS前置摄像头');
+                    loadingIndicator.textContent = '尝试使用前置摄像头...';
+                    
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "user" },
+                        audio: false
+                    });
+                    
+                    // 设置视频源
+                    video.srcObject = stream;
+                    
+                    // 调整画布大小
+                    video.onloadedmetadata = () => {
+                        resizeCanvas();
+                        // 隐藏相机占位符
+                        cameraPlaceholder.style.display = 'none';
+                        loadingIndicator.style.opacity = '0';
+                        setTimeout(() => loadingIndicator.style.display = 'none', 300);
+                    };
+                    
+                    // 开始检测循环
+                    isDetecting = true;
+                    startDetectionLoop();
+                    saveBtn.disabled = false;
+                    return;
+                } catch (iosError) {
+                    console.error('iOS前置摄像头访问也失败:', iosError);
+                }
             }
         }
         
-        loadingIndicator.textContent = '摄像头访问失败: ' + error.message;
+        loadingIndicator.textContent = '摄像头访问失败: ' + (error.message || '无法访问摄像头，请确保已授予权限');
         loadingIndicator.style.display = 'block';
         loadingIndicator.style.opacity = '1';
         

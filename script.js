@@ -7,6 +7,7 @@ const stopBtn = document.getElementById('stopBtn');
 const predictionsEl = document.getElementById('predictions');
 const loadingIndicator = document.createElement('div'); // 加载指示器
 const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+const cameraFocus = document.querySelector('.camera-focus');
 
 // 全局变量
 let model;
@@ -22,6 +23,20 @@ const settings = {
     language: 'zh-CN',        // 语言设置
     showBoundingBox: true,    // 显示边界框
     updateInterval: 100       // 更新间隔(ms)
+};
+
+// 对象颜色映射
+const colorMap = {
+    'person': '#FF5733',       // 人 - 红橙色
+    'bicycle': '#33FF57',      // 自行车 - 绿色
+    'car': '#3357FF',          // 汽车 - 蓝色
+    'motorcycle': '#FF33E6',   // 摩托车 - 粉色
+    'airplane': '#33FFF3',     // 飞机 - 青色
+    'bus': '#FFD433',          // 公交车 - 黄色
+    'train': '#9A33FF',        // 火车 - 紫色
+    'truck': '#FF9A33',        // 卡车 - 橙色
+    'boat': '#33A2FF',         // 船 - 浅蓝色
+    'default': '#00C8FF'       // 默认颜色
 };
 
 // 中文标签映射（COCO-SSD默认为英文）
@@ -293,6 +308,11 @@ async function startDetection() {
         await startCamera();
         hideLoadingIndicator();
         
+        // 显示相机聚焦效果
+        if (cameraFocus) {
+            cameraFocus.style.opacity = '1';
+        }
+        
         isRunning = true;
         startBtn.disabled = true;
         stopBtn.disabled = false;
@@ -340,6 +360,11 @@ function stopDetection() {
     
     // 清除结果
     predictionsEl.innerHTML = '';
+    
+    // 隐藏相机聚焦效果
+    if (cameraFocus) {
+        cameraFocus.style.opacity = '0';
+    }
     
     // 显示摄像头占位符
     if (cameraPlaceholder) {
@@ -439,7 +464,7 @@ function drawPredictions(predictions) {
     );
     
     // 遍历检测结果
-    filteredPredictions.forEach(prediction => {
+    filteredPredictions.forEach((prediction, index) => {
         const [x, y, width, height] = prediction.bbox;
         const label = prediction.class;
         const score = Math.round(prediction.score * 100);
@@ -449,23 +474,119 @@ function drawPredictions(predictions) {
         
         // 在画布上绘制边界框
         if (settings.showBoundingBox) {
-            ctx.strokeStyle = '#3498db';
-            ctx.lineWidth = 2;
+            // 获取物体的颜色
+            const color = colorMap[label] || colorMap['default'];
+            
+            // 绘制边界框
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
             ctx.strokeRect(x, y, width, height);
             
-            // 绘制标签背景
-            ctx.fillStyle = 'rgba(52, 152, 219, 0.7)';
-            ctx.fillRect(x, y - 30, 150, 30);
+            // 添加辅助线条效果（角落增强）
+            const cornerLength = Math.min(width, height) * 0.2; // 角落长度
+            ctx.beginPath();
             
-            // 绘制标签文字
+            // 左上角
+            ctx.moveTo(x, y + cornerLength);
+            ctx.lineTo(x, y);
+            ctx.lineTo(x + cornerLength, y);
+            
+            // 右上角
+            ctx.moveTo(x + width - cornerLength, y);
+            ctx.lineTo(x + width, y);
+            ctx.lineTo(x + width, y + cornerLength);
+            
+            // 右下角
+            ctx.moveTo(x + width, y + height - cornerLength);
+            ctx.lineTo(x + width, y + height);
+            ctx.lineTo(x + width - cornerLength, y + height);
+            
+            // 左下角
+            ctx.moveTo(x + cornerLength, y + height);
+            ctx.lineTo(x, y + height);
+            ctx.lineTo(x, y + height - cornerLength);
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // 设置文本样式
+            ctx.font = 'bold 16px Arial';
+            const labelText = `${chineseLabel}: ${score}%`;
+            const textMetrics = ctx.measureText(labelText);
+            const textWidth = textMetrics.width + 20; // 添加一些内边距
+            const textHeight = 30;
+            
+            // 根据物体在画布中的位置调整标签位置
+            let textX = x;
+            let textY = y - textHeight - 5; // 默认在物体上方
+            
+            // 检查是否超出顶部边界
+            if (textY < 10) {
+                textY = y + height + textHeight; // 改为在物体下方显示
+            }
+            
+            // 检查是否超出右侧边界
+            if (textX + textWidth > canvas.width) {
+                textX = canvas.width - textWidth - 5; // 确保不超出右边界
+            }
+            
+            // 检查是否超出左侧边界
+            if (textX < 5) {
+                textX = 5; // 确保不超出左边界
+            }
+            
+            // 创建标签背景渐变
+            const bgColor = color;
+            const gradient = ctx.createLinearGradient(textX, textY, textX + textWidth, textY);
+            gradient.addColorStop(0, bgColor + 'DD'); // 半透明
+            gradient.addColorStop(1, bgColor + '77'); // 更透明
+            
+            // 绘制标签背景（带圆角）
+            ctx.fillStyle = gradient;
+            const radius = 4;
+            ctx.beginPath();
+            ctx.moveTo(textX + radius, textY);
+            ctx.lineTo(textX + textWidth - radius, textY);
+            ctx.quadraticCurveTo(textX + textWidth, textY, textX + textWidth, textY + radius);
+            ctx.lineTo(textX + textWidth, textY + textHeight - radius);
+            ctx.quadraticCurveTo(textX + textWidth, textY + textHeight, textX + textWidth - radius, textY + textHeight);
+            ctx.lineTo(textX + radius, textY + textHeight);
+            ctx.quadraticCurveTo(textX, textY + textHeight, textX, textY + textHeight - radius);
+            ctx.lineTo(textX, textY + radius);
+            ctx.quadraticCurveTo(textX, textY, textX + radius, textY);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 添加连接线（从物体到标签）
+            ctx.beginPath();
+            ctx.moveTo(x + width/2, textY < y ? textY + textHeight : textY);
+            ctx.lineTo(x + width/2, textY < y ? y : y + height);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // 绘制标签文字（白色，带细微阴影效果）
             ctx.fillStyle = 'white';
-            ctx.font = '16px Arial';
-            ctx.fillText(`${chineseLabel}: ${score}%`, x + 5, y - 10);
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 2;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
+            ctx.fillText(labelText, textX + 10, textY + 20);
+            
+            // 重置阴影效果
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
         }
         
-        // 更新预测结果列表
+        // 更新预测结果列表（使用相同的颜色）
         const predItem = document.createElement('div');
         predItem.className = 'prediction-item';
+        predItem.style.borderLeftColor = colorMap[label] || colorMap['default'];
         predItem.innerHTML = `<strong>${chineseLabel}</strong>: ${score}%`;
         predictionsEl.appendChild(predItem);
     });

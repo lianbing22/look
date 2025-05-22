@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>恒泰视觉识别测试项目 - 管理后台</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <header>
+        <h1>恒泰视觉识别测试项目 - 管理后台</h1>
+        <nav>
+            <a href="../index.html">返回首页</a>
+            <a href="#" class="active">管理设置</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <h2>系统设置</h2>
+            <form id="settingsForm">
+                <div class="form-group">
+                    <label for="detectionThreshold">识别阈值</label>
+                    <input type="range" id="detectionThreshold" name="detectionThreshold" min="0.1" max="0.9" step="0.05" value="0.5">
+                    <span id="thresholdValue">0.5</span>
+                    <p class="help-text">设置物体识别的最小置信度阈值。较高的值会减少误识别，但可能错过一些物体。</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="maxDetections">最大识别数量</label>
+                    <input type="number" id="maxDetections" name="maxDetections" min="1" max="20" value="10">
+                    <p class="help-text">每帧画面中最多识别的物体数量。</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="showBoundingBox">显示边界框</label>
+                    <input type="checkbox" id="showBoundingBox" name="showBoundingBox" checked>
+                    <p class="help-text">在摄像头画面中显示物体的边界框和标签。</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="updateInterval">更新间隔(毫秒)</label>
+                    <input type="number" id="updateInterval" name="updateInterval" min="50" max="1000" step="50" value="100">
+                    <p class="help-text">物体检测的更新频率。较低的值会更新更频繁，但可能影响性能。</p>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" id="saveBtn">保存设置</button>
+                    <button type="button" id="resetBtn">恢复默认</button>
+                </div>
+            </form>
+
+            <div class="status-container">
+                <h2>系统状态</h2>
+                <div class="status-info">
+                    <p><strong>浏览器:</strong> <span id="browserInfo">-</span></p>
+                    <p><strong>设备:</strong> <span id="deviceInfo">-</span></p>
+                    <p><strong>摄像头支持:</strong> <span id="cameraSupport">检查中...</span></p>
+                    <p><strong>TensorFlow.js 状态:</strong> <span id="tensorflowStatus">检查中...</span></p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>© 2023 恒泰视觉识别测试项目</p>
+    </footer>
+
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="admin.js"></script>
+</body>
+</html> 

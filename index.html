@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>恒泰视觉识别测试项目</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <!-- COCO-SSD 模型 -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+</head>
+<body>
+    <header>
+        <h1>恒泰视觉识别测试项目</h1>
+        <nav>
+            <a href="#" class="active">首页</a>
+            <a href="admin/index.html">管理</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="camera-container">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+                <div class="controls">
+                    <button id="startBtn">开始识别</button>
+                    <button id="stopBtn" disabled>停止识别</button>
+                </div>
+            </div>
+            <div class="results">
+                <h2>识别结果</h2>
+                <div id="predictions"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>© 2023 恒泰视觉识别测试项目</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html> 

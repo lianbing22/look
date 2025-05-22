@@ -5,12 +5,15 @@ const ctx = canvas.getContext('2d');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const predictionsEl = document.getElementById('predictions');
+const loadingIndicator = document.createElement('div'); // 加载指示器
+const cameraPlaceholder = document.getElementById('cameraPlaceholder');
 
 // 全局变量
 let model;
 let stream;
 let isRunning = false;
 let animationId;
+let isModelLoading = false;
 
 // 设置参数（可从后台配置）
 const settings = {
@@ -108,17 +111,8 @@ const labelMap = {
 // 初始化
 async function init() {
     try {
-        // 加载模型
-        console.log('正在加载 COCO-SSD 模型...');
-        
-        // 使用timeout确保模型加载不会无限等待
-        const modelPromise = cocoSsd.load();
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('模型加载超时')), 30000)
-        );
-        
-        model = await Promise.race([modelPromise, timeoutPromise]);
-        console.log('模型加载完成');
+        // 设置加载指示器
+        setupLoadingIndicator();
         
         // 启用按钮
         startBtn.disabled = false;
@@ -126,37 +120,70 @@ async function init() {
         // 加载本地存储的设置
         loadSettings();
         
-        // 预检查摄像头权限
-        checkCameraAccess();
+        // 在后台加载模型，但不阻塞界面
+        loadModelInBackground();
+        
+        // 检查iOS设备
+        checkIOSDevice();
     } catch (error) {
         console.error('初始化失败:', error);
-        
-        // 显示更具体的错误信息
-        if (error.message === '模型加载超时') {
-            alert('模型加载超时，请检查网络连接并刷新页面重试。');
-        } else if (error.name === 'NotAllowedError') {
-            alert('摄像头访问被拒绝，请授予摄像头访问权限并刷新页面。');
-        } else {
-            alert('初始化失败：' + error.message + '。请刷新页面重试。');
-        }
-        
-        // 尝试仍然启用按钮，让用户可以尝试启动
-        startBtn.disabled = false;
+        hideLoadingIndicator();
     }
 }
 
-// 检查摄像头访问
-async function checkCameraAccess() {
+// 设置加载指示器
+function setupLoadingIndicator() {
+    loadingIndicator.className = 'loading-indicator';
+    loadingIndicator.innerHTML = '模型加载中...';
+    loadingIndicator.style.position = 'fixed';
+    loadingIndicator.style.top = '50%';
+    loadingIndicator.style.left = '50%';
+    loadingIndicator.style.transform = 'translate(-50%, -50%)';
+    loadingIndicator.style.backgroundColor = 'rgba(0,0,0,0.7)';
+    loadingIndicator.style.color = 'white';
+    loadingIndicator.style.padding = '15px 20px';
+    loadingIndicator.style.borderRadius = '5px';
+    loadingIndicator.style.zIndex = '9999';
+    loadingIndicator.style.display = 'none';
+    document.body.appendChild(loadingIndicator);
+}
+
+// 显示加载指示器
+function showLoadingIndicator(message = '模型加载中...') {
+    loadingIndicator.innerHTML = message;
+    loadingIndicator.style.display = 'block';
+}
+
+// 隐藏加载指示器
+function hideLoadingIndicator() {
+    loadingIndicator.style.display = 'none';
+}
+
+// 后台加载模型
+async function loadModelInBackground() {
     try {
-        // 仅检查权限，不保留流
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        // 立即关闭流
-        stream.getTracks().forEach(track => track.stop());
-        console.log('摄像头权限已获取');
-        return true;
+        if (!model && !isModelLoading) {
+            isModelLoading = true;
+            console.log('后台加载COCO-SSD模型...');
+            // 这里不显示加载提示，让它在后台静默加载
+            model = await cocoSsd.load();
+            console.log('模型加载完成');
+            isModelLoading = false;
+        }
     } catch (error) {
-        console.warn('摄像头预检查失败:', error);
-        return false;
+        console.error('模型后台加载失败:', error);
+        isModelLoading = false;
+    }
+}
+
+// 检查iOS设备
+function checkIOSDevice() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+        console.log('检测到iOS设备，使用特定处理');
+        // 为iOS设备添加特定处理
+        document.documentElement.style.height = '100%';
+        document.body.style.height = '100%';
     }
 }
 
@@ -169,11 +196,30 @@ async function startCamera() {
                 facingMode: 'environment', // 使用后置摄像头
                 width: { ideal: 1280 },
                 height: { ideal: 720 }
-            }
+            },
+            audio: false
         };
         
+        console.log('请求摄像头权限...');
         stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream;
+        console.log('摄像头权限已获取');
+        
+        // 对于iOS设备的特殊处理
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS) {
+            // 在iOS上，我们可能需要明确设置srcObject
+            if ('srcObject' in video) {
+                video.srcObject = stream;
+            } else {
+                // 旧版浏览器回退
+                video.src = window.URL.createObjectURL(stream);
+            }
+        } else {
+            video.srcObject = stream;
+        }
+        
+        // 确保视频播放
+        video.play().catch(e => console.error('视频播放失败:', e));
         
         return new Promise((resolve) => {
             video.onloadedmetadata = () => {
@@ -187,15 +233,23 @@ async function startCamera() {
                 canvas.style.width = '100%';
                 canvas.style.height = 'auto';
                 
-                // 强制触发视频播放
-                video.play().catch(e => console.error('视频播放失败:', e));
-                
+                console.log(`视频尺寸: ${video.videoWidth}x${video.videoHeight}`);
                 resolve();
             };
         });
     } catch (error) {
         console.error('摄像头访问失败:', error);
-        throw new Error('无法访问摄像头。请确保您已授权浏览器使用摄像头，并且您的设备具有可用的摄像头。');
+        
+        // 提供更具体的错误信息
+        if (error.name === 'NotAllowedError') {
+            throw new Error('摄像头访问被拒绝。请在浏览器设置中允许摄像头访问，然后刷新页面。');
+        } else if (error.name === 'NotFoundError') {
+            throw new Error('找不到摄像头设备。请确保您的设备有可用的摄像头。');
+        } else if (error.name === 'NotReadableError') {
+            throw new Error('摄像头已被其他应用程序占用。请关闭其他可能使用摄像头的应用，然后刷新页面。');
+        } else {
+            throw new Error(`无法访问摄像头: ${error.message}。请确保您已授权浏览器使用摄像头。`);
+        }
     }
 }
 
@@ -210,14 +264,34 @@ async function startDetection() {
         // 清除之前的结果
         predictionsEl.innerHTML = '';
         
+        // 显示加载提示
+        if (!model) {
+            showLoadingIndicator('正在加载模型...');
+        }
+        
         // 确保模型已加载
         if (!model) {
-            console.log('重新加载模型...');
-            model = await cocoSsd.load();
+            console.log('开始加载模型...');
+            try {
+                model = await cocoSsd.load();
+                console.log('模型加载完成');
+            } catch (modelError) {
+                throw new Error(`模型加载失败: ${modelError.message}`);
+            }
+        }
+        
+        // 隐藏加载提示，显示摄像头加载提示
+        hideLoadingIndicator();
+        showLoadingIndicator('正在启动摄像头...');
+        
+        // 隐藏摄像头占位符
+        if (cameraPlaceholder) {
+            cameraPlaceholder.style.display = 'none';
         }
         
         // 启动摄像头
         await startCamera();
+        hideLoadingIndicator();
         
         isRunning = true;
         startBtn.disabled = true;
@@ -228,6 +302,17 @@ async function startDetection() {
         detectObjects();
     } catch (error) {
         console.error('启动失败:', error);
+        hideLoadingIndicator();
+        
+        // 显示摄像头占位符
+        if (cameraPlaceholder) {
+            cameraPlaceholder.style.display = 'flex';
+            const spanElement = cameraPlaceholder.querySelector('span');
+            if (spanElement) {
+                spanElement.textContent = '启动失败: ' + error.message;
+            }
+        }
+        
         alert(error.message);
         startBtn.disabled = false;
         startBtn.textContent = '开始识别';
@@ -255,6 +340,15 @@ function stopDetection() {
     
     // 清除结果
     predictionsEl.innerHTML = '';
+    
+    // 显示摄像头占位符
+    if (cameraPlaceholder) {
+        cameraPlaceholder.style.display = 'flex';
+        const spanElement = cameraPlaceholder.querySelector('span');
+        if (spanElement) {
+            spanElement.textContent = '准备就绪，点击下方按钮开始';
+        }
+    }
     
     // 更新状态
     isRunning = false;

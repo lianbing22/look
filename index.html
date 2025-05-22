@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>恒泰视觉识别测试项目</title>
     <link rel="stylesheet" href="style.css">
     <!-- TensorFlow.js -->
@@ -22,12 +22,18 @@
     <main>
         <div class="container">
             <div class="camera-container">
-                <video id="video" autoplay playsinline></video>
+                <video id="video" autoplay playsinline muted></video>
                 <canvas id="canvas"></canvas>
-                <div class="controls">
-                    <button id="startBtn">开始识别</button>
-                    <button id="stopBtn" disabled>停止识别</button>
+                <div id="cameraPlaceholder" class="camera-placeholder">
+                    <div>
+                        <div class="loading-spinner"></div>
+                        <span>准备就绪，点击下方按钮开始</span>
+                    </div>
                 </div>
+            </div>
+            <div class="controls">
+                <button id="startBtn">开始识别</button>
+                <button id="stopBtn" disabled>停止识别</button>
             </div>
             <div class="results">
                 <h2>识别结果</h2>

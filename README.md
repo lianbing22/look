@@ -22,7 +22,7 @@
 
 由于使用纯前端技术，您可以通过以下方式运行项目：
 
-1. 通过GitHub Pages访问: [https://你的用户名.github.io/hengtai-vision/](https://你的用户名.github.io/hengtai-vision/)
+1. 通过GitHub Pages访问: [https://github.com/lianbing22/look](https://github.com/lianbing22/look)
 2. 或者在本地使用HTTP服务器（由于摄像头API安全限制，需要HTTPS或localhost环境）
 
 ```bash
@@ -91,8 +91,10 @@ MIT License
 
 ## 贡献
 
-欢迎通过Issue或Pull Request提供改进建议和贡献代码。
+欢迎通过微信：X08954提供改进建议和贡献代码。
 
 ---
 
-注：本项目仅用于技术验证，识别结果准确性受多种因素影响，如光线、角度、摄像头质量等。 
+注：本项目仅用于技术验证，识别结果准确性受多种因素影响，如光线、角度、摄像头质量等。
+
+© 2025 恒泰视觉识别测试项目 

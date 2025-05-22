@@ -205,6 +205,18 @@ async function detectObjects() {
     if (!isRunning) return;
     
     try {
+        // 检查模型是否已加载
+        if (!model) {
+            console.log('模型未加载，尝试重新加载...');
+            model = await cocoSsd.load();
+        }
+        
+        // 检查视频流是否正常
+        if (!video.srcObject || !video.srcObject.active) {
+            console.log('视频流异常，尝试重新获取...');
+            await startCamera();
+        }
+        
         // 执行检测
         const predictions = await model.detect(video, settings.maxDetections);
         
@@ -221,8 +233,27 @@ async function detectObjects() {
         }, settings.updateInterval);
     } catch (error) {
         console.error('检测过程中发生错误:', error);
-        stopDetection();
-        alert('检测过程中发生错误，已停止识别。');
+        
+        // 尝试恢复三次，如果仍然失败则停止
+        if (!window.retryCount) {
+            window.retryCount = 1;
+        } else {
+            window.retryCount++;
+        }
+        
+        if (window.retryCount <= 3) {
+            console.log(`尝试恢复 (${window.retryCount}/3)...`);
+            
+            // 短暂延迟后重试
+            setTimeout(() => {
+                animationId = requestAnimationFrame(detectObjects);
+            }, 1000);
+        } else {
+            // 重置计数
+            window.retryCount = 0;
+            stopDetection();
+            alert('检测过程中发生错误，已停止识别。请检查网络连接并刷新页面重试。');
+        }
     }
 }
 

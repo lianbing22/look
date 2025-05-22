@@ -1,112 +1,65 @@
 # 恒泰视觉 AI 识别系统
 
-这是一个使用网页技术调用手机摄像头进行物品智能识别的系统。项目利用TensorFlow.js的COCO-SSD模型在浏览器中实时检测和识别80种常见物体，具有科技感强、界面友好的特点。
+恒泰视觉 AI 识别系统是一款基于TensorFlow.js的实时物体识别应用，可以通过浏览器直接访问，无需安装任何软件。该系统利用先进的COCO-SSD模型，能够实时识别摄像头画面中的80多种常见物体。
 
-## 功能特点
+## 主要功能
 
-- 实时调用手机摄像头进行视频捕获
-- 使用TensorFlow.js和COCO-SSD模型进行物体识别
-- 在视频画面上显示彩色边界框和智能识别结果
-- 不同类型物体使用不同颜色标识，视觉区分更明确
-- 智能文字标签布局，确保不会超出显示区域
-- 现代化科技感界面，带有动态效果和反馈
-- 直观的管理后台，可配置识别参数
-- 完全在前端运行，无需服务器
-- 支持中文显示识别结果
+- **实时物体识别**：利用设备摄像头进行实时物体检测和识别
+- **多物体同时识别**：支持同时检测多个物体，默认最多10个（可调整）
+- **中文标签显示**：所有识别结果均以中文显示，便于中国用户使用
+- **可调节参数**：支持调整识别阈值、最大识别数量、显示设置等
+- **响应式设计**：适配各种设备，从手机到桌面电脑均可流畅使用
+- **离线支持**：通过PWA技术，支持安装到主屏幕并离线使用核心功能
+- **低电量优化**：在移动设备电量低时自动降低刷新率以节省电量
+
+## 使用方法
+
+1. 打开系统网页
+2. 点击"开始识别"按钮（首次使用需要授予摄像头权限）
+3. 将摄像头对准需要识别的物体
+4. 查看右侧识别结果列表
+5. 完成后点击"停止识别"按钮
+
+## 系统要求
+
+- 现代浏览器（Chrome, Firefox, Safari, Edge的最新版本）
+- 摄像头
+- 支持JavaScript的设备
+- 推荐使用较新的移动设备或电脑，以获得更流畅的体验
+
+## 隐私说明
+
+- 所有识别过程均在本地进行，不会上传任何图像或视频数据
+- 不会收集用户个人信息
+- 设置数据仅保存在本地浏览器中
 
 ## 技术栈
 
-- HTML5 / CSS3 / JavaScript
-- [MediaDevices API](https://developer.mozilla.org/zh-CN/docs/Web/API/MediaDevices) - 用于访问摄像头
-- [TensorFlow.js](https://tensorflow.google.cn/js) - 机器学习框架
-- [COCO-SSD模型](https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd) - 预训练的物体检测模型
-- Canvas API - 用于绘制高级视觉效果
-
-## 快速开始
-
-由于使用纯前端技术，您可以通过以下方式运行项目：
-
-1. 通过GitHub Pages访问: [https://github.com/lianbing22/look](https://github.com/lianbing22/look)
-2. 或者在本地使用HTTP服务器（由于摄像头API安全限制，需要HTTPS或localhost环境）
-
-```bash
-# 使用Python启动简单HTTP服务器
-python -m http.server
-
-# 或使用Node.js的http-server
-npx http-server
-```
-
-## 使用说明
-
-1. 打开应用后，点击"开始识别"按钮
-2. 允许浏览器访问摄像头
-3. 将摄像头对准要识别的物体
-4. 识别结果将在右侧列表中显示，不同物体使用不同颜色标识
-5. 点击"停止识别"按钮结束识别过程
-
-## 管理设置
-
-点击导航栏中的"管理"进入管理页面，可以配置以下参数：
-
-- **识别阈值**: 调整识别的准确度要求（0.1-0.9）
-- **最大识别数量**: 每帧画面中最多识别的物体数量（1-20）
-- **显示边界框**: 是否在视频上显示边界框和标签
-- **更新间隔**: 物体检测的频率（毫秒）
-
-## 界面特点
-
-- **深色主题**: 采用现代化深色主题设计，减少眼睛疲劳
-- **彩色识别**: 不同类型的物体使用不同颜色标识，便于区分
-- **智能标签**: 文字标签位置自动调整，确保不会超出屏幕
-- **动态效果**: 按钮、控件和识别框都带有细微动画效果
-- **自适应布局**: 完美适配移动设备和桌面浏览器
-
-## 浏览器兼容性
-
-- Chrome 60+ (推荐)
-- Firefox 55+
-- Safari 11+
-- Edge 79+
-
-移动设备：
-- iOS Safari 11+
-- Android Chrome 60+
+- **前端**：HTML5, CSS3, JavaScript
+- **AI模型**：TensorFlow.js, COCO-SSD模型
+- **PWA技术**：Service Worker, Web App Manifest
+- **响应式设计**：适配移动端和桌面端
 
 ## 本地开发
 
-如需修改或扩展功能，只需编辑相应的HTML/CSS/JavaScript文件：
+1. 克隆仓库：`git clone https://github.com/yourusername/hengtai-vision.git`
+2. 进入项目目录：`cd hengtai-vision`
+3. 使用任意HTTP服务器运行项目，例如：
+   - Python: `python -m http.server 8000`
+   - Node.js: `npx serve`
+4. 在浏览器中访问：`http://localhost:8000`
 
-```
-/
-├── index.html          # 主页面
-├── style.css           # 主页样式
-├── script.js           # 主要功能代码
-├── admin/
-│   ├── index.html      # 管理页面
-│   ├── admin.css       # 管理页面样式
-│   └── admin.js        # 管理功能代码
-└── README.md           # 项目说明
-```
+## 许可证
 
-## 部署到GitHub Pages
+MIT
 
-1. Fork或克隆此仓库
-2. 修改为你需要的内容
-3. 在仓库设置中启用GitHub Pages（Settings > Pages）
-4. 选择main分支作为源
-5. 保存后，你的应用将在几分钟内部署完成
+## 联系方式
 
-## 许可
+如有问题或建议，请通过以下方式联系我们：
 
-MIT License
-
-## 贡献
-
-欢迎通过微信：X08954提供改进建议和贡献代码。
+- 邮箱：contact@example.com
+- GitHub Issues: [https://github.com/yourusername/hengtai-vision/issues](https://github.com/yourusername/hengtai-vision/issues)
 
 ---
 
-注：本项目识别结果准确性受多种因素影响，如光线、角度、摄像头质量等。
-
-© 2025 恒泰视觉 AI 识别系统 
+&copy; 2025 恒泰科技

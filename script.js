@@ -4,42 +4,48 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
+const saveBtn = document.getElementById('saveBtn');
 const predictionsEl = document.getElementById('predictions');
 const loadingIndicator = document.createElement('div'); // 加载指示器
 const cameraPlaceholder = document.getElementById('cameraPlaceholder');
 const cameraFocus = document.querySelector('.camera-focus');
 
+// 添加帮助相关元素
+const helpBtn = document.getElementById('helpBtn');
+const helpOverlay = document.getElementById('helpOverlay');
+const closeHelpBtn = document.getElementById('closeHelpBtn');
+const startTutorialBtn = document.getElementById('startTutorialBtn');
+
+// 添加历史记录相关元素
+const historyBtn = document.getElementById('historyBtn');
+const historyPanel = document.getElementById('historyPanel');
+const historyCloseBtn = document.getElementById('historyCloseBtn');
+const historyContent = document.getElementById('historyContent');
+const historyClearBtn = document.getElementById('historyClearBtn');
+const saveDialog = document.getElementById('saveDialog');
+const savePreview = document.getElementById('savePreview');
+const saveName = document.getElementById('saveName');
+const cancelSaveBtn = document.getElementById('cancelSaveBtn');
+const confirmSaveBtn = document.getElementById('confirmSaveBtn');
+
 // 全局变量
 let model;
 let stream;
-let isRunning = false;
-let animationId;
-let isModelLoading = false;
+let isModelLoading = true;
+let isDetecting = false;
+let detectInterval;
+let lastDetectionTime = 0;
+let pendingDetection = false;
+let animationFrameId = null;
+let devicePixelRatio = window.devicePixelRatio || 1;
+let pageVisible = true;
+let lowBattery = false;
+let lowBatteryThreshold = 0.2; // 20%电量阈值
+let isReducedFrameRate = false;
+let originalUpdateInterval = 100;
+let isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-// 设置参数（可从后台配置）
-const settings = {
-    detectionThreshold: 0.5,  // 识别阈值
-    maxDetections: 10,        // 最大识别数量
-    language: 'zh-CN',        // 语言设置
-    showBoundingBox: true,    // 显示边界框
-    updateInterval: 100       // 更新间隔(ms)
-};
-
-// 对象颜色映射
-const colorMap = {
-    'person': '#FF5733',       // 人 - 红橙色
-    'bicycle': '#33FF57',      // 自行车 - 绿色
-    'car': '#3357FF',          // 汽车 - 蓝色
-    'motorcycle': '#FF33E6',   // 摩托车 - 粉色
-    'airplane': '#33FFF3',     // 飞机 - 青色
-    'bus': '#FFD433',          // 公交车 - 黄色
-    'train': '#9A33FF',        // 火车 - 紫色
-    'truck': '#FF9A33',        // 卡车 - 橙色
-    'boat': '#33A2FF',         // 船 - 浅蓝色
-    'default': '#00C8FF'       // 默认颜色
-};
-
-// 中文标签映射（COCO-SSD默认为英文）
+// 中文标签映射
 const labelMap = {
     'person': '人',
     'bicycle': '自行车',
@@ -50,7 +56,7 @@ const labelMap = {
     'train': '火车',
     'truck': '卡车',
     'boat': '船',
-    'traffic light': '交通灯',
+    'traffic light': '红绿灯',
     'fire hydrant': '消防栓',
     'stop sign': '停止标志',
     'parking meter': '停车计时器',
@@ -69,7 +75,7 @@ const labelMap = {
     'umbrella': '雨伞',
     'handbag': '手提包',
     'tie': '领带',
-    'suitcase': '手提箱',
+    'suitcase': '行李箱',
     'frisbee': '飞盘',
     'skis': '滑雪板',
     'snowboard': '滑雪板',
@@ -83,9 +89,9 @@ const labelMap = {
     'bottle': '瓶子',
     'wine glass': '酒杯',
     'cup': '杯子',
-    'fork': '叉子',
+    'fork': '叉',
     'knife': '刀',
-    'spoon': '勺子',
+    'spoon': '勺',
     'bowl': '碗',
     'banana': '香蕉',
     'apple': '苹果',
@@ -123,484 +129,181 @@ const labelMap = {
     'toothbrush': '牙刷'
 };
 
+// 颜色映射
+const colorMap = {
+    'person': '#FF5733',
+    'vehicle': '#33A8FF', // 包括汽车、卡车、自行车等
+    'animal': '#33FF57', // 包括猫、狗等
+    'food': '#F033FF', // 包括披萨、热狗等
+    'furniture': '#FFD700', // 包括椅子、桌子等
+    'electronic': '#00FFFF', // 包括手机、电脑等
+    'default': '#FFFFFF'
+};
+
+// 物体类别分组
+const categoryGroups = {
+    'vehicle': ['bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat'],
+    'animal': ['bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe'],
+    'food': ['banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake'],
+    'furniture': ['chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet'],
+    'electronic': ['tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'refrigerator']
+};
+
+// 添加设备分辨率检测和处理函数
+function detectDeviceCapabilities() {
+    // 检测设备类型
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isTablet = /iPad|Android(?!.*Mobile)/i.test(navigator.userAgent) || 
+                    (window.innerWidth >= 768 && window.innerWidth <= 1024);
+    const isLandscape = window.innerWidth > window.innerHeight;
+    
+    // 检测屏幕分辨率
+    const screenWidth = window.screen.width;
+    const screenHeight = window.screen.height;
+    const screenRatio = screenWidth / screenHeight;
+    const isHighDensity = window.devicePixelRatio > 1.5;
+    
+    // 检测性能级别（简易判断）
+    const isLowPerformance = isMobile && !isHighEndMobile();
+    
+    // 存储设备能力信息
+    const deviceCapabilities = {
+        isMobile,
+        isTablet,
+        isLandscape,
+        screenWidth,
+        screenHeight,
+        screenRatio,
+        isHighDensity,
+        isLowPerformance
+    };
+    
+    console.log('设备能力:', deviceCapabilities);
+    
+    return deviceCapabilities;
+}
+
+// 检测是否是高端移动设备（简易判断，实际可基于更多因素）
+function isHighEndMobile() {
+    // 使用内存估计判断，8GB以上视为高端
+    if (navigator.deviceMemory && navigator.deviceMemory >= 8) {
+        return true;
+    }
+    
+    // 使用硬件并发数判断，8核以上视为高端
+    if (navigator.hardwareConcurrency && navigator.hardwareConcurrency >= 8) {
+        return true;
+    }
+    
+    // 使用设备像素比判断，3以上视为高端
+    if (window.devicePixelRatio >= 3) {
+        return true;
+    }
+    
+    return false;
+}
+
+// 基于设备能力调整视频请求参数
+function getOptimalVideoConstraints() {
+    const capabilities = detectDeviceCapabilities();
+    
+    // 基于设备类型和性能选择最佳视频设置
+    let idealWidth, idealHeight;
+    
+    if (capabilities.isLowPerformance) {
+        // 低性能设备使用较低分辨率
+        idealWidth = 640;
+        idealHeight = 480;
+    } else if (capabilities.isTablet) {
+        // 平板设备
+        idealWidth = 1280;
+        idealHeight = 720;
+    } else if (!capabilities.isMobile) {
+        // 桌面设备
+        idealWidth = 1920;
+        idealHeight = 1080;
+    } else {
+        // 标准移动设备
+        idealWidth = 1280;
+        idealHeight = 720;
+    }
+    
+    // 如果是横屏模式，交换宽高
+    if (capabilities.isLandscape && capabilities.isMobile) {
+        [idealWidth, idealHeight] = [idealHeight, idealWidth];
+    }
+    
+    return {
+        facingMode: 'environment', // 使用后置摄像头（如果可用）
+        width: { ideal: idealWidth },
+        height: { ideal: idealHeight }
+    };
+}
+
 // 初始化
 async function init() {
-    try {
-        // 设置加载指示器
-        setupLoadingIndicator();
-        
-        // 启用按钮
-        startBtn.disabled = false;
-        
-        // 加载本地存储的设置
-        loadSettings();
-        
-        // 在后台加载模型，但不阻塞界面
-        loadModelInBackground();
-        
-        // 检查iOS设备
-        checkIOSDevice();
-    } catch (error) {
-        console.error('初始化失败:', error);
-        hideLoadingIndicator();
-    }
-}
-
-// 设置加载指示器
-function setupLoadingIndicator() {
-    loadingIndicator.className = 'loading-indicator';
-    loadingIndicator.innerHTML = '模型加载中...';
-    loadingIndicator.style.position = 'fixed';
-    loadingIndicator.style.top = '50%';
-    loadingIndicator.style.left = '50%';
-    loadingIndicator.style.transform = 'translate(-50%, -50%)';
-    loadingIndicator.style.backgroundColor = 'rgba(0,0,0,0.7)';
-    loadingIndicator.style.color = 'white';
-    loadingIndicator.style.padding = '15px 20px';
-    loadingIndicator.style.borderRadius = '5px';
-    loadingIndicator.style.zIndex = '9999';
-    loadingIndicator.style.display = 'none';
+    loadingIndicator.classList.add('loading-indicator');
+    loadingIndicator.textContent = '正在加载模型...';
     document.body.appendChild(loadingIndicator);
-}
-
-// 显示加载指示器
-function showLoadingIndicator(message = '模型加载中...') {
-    loadingIndicator.innerHTML = message;
-    loadingIndicator.style.display = 'block';
-}
-
-// 隐藏加载指示器
-function hideLoadingIndicator() {
-    loadingIndicator.style.display = 'none';
-}
-
-// 后台加载模型
-async function loadModelInBackground() {
-    try {
-        if (!model && !isModelLoading) {
-            isModelLoading = true;
-            console.log('后台加载COCO-SSD模型...');
-            // 这里不显示加载提示，让它在后台静默加载
-            model = await cocoSsd.load();
-            console.log('模型加载完成');
-            isModelLoading = false;
+    
+    // 初始化设置
+    loadSettings();
+    
+    // 添加窗口大小调整监听器
+    window.addEventListener('resize', handleResize);
+    
+    // 添加页面可见性监听
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // 添加设备方向变化监听
+    if (window.screen && window.screen.orientation) {
+        window.screen.orientation.addEventListener('change', handleOrientationChange);
+    } else if (window.orientation !== undefined) {
+        window.addEventListener('orientationchange', handleOrientationChange);
+    }
+    
+    // 监听电池状态（如果浏览器支持）
+    if (navigator.getBattery) {
+        try {
+            const battery = await navigator.getBattery();
+            handleBatteryStatus(battery);
+            
+            // 监听电池状态变化
+            battery.addEventListener('levelchange', () => handleBatteryStatus(battery));
+            battery.addEventListener('chargingchange', () => handleBatteryStatus(battery));
+        } catch (e) {
+            console.log('电池API不可用:', e);
         }
+    }
+    
+    // 隐藏相机占位符，初始时显示
+    cameraPlaceholder.style.display = 'flex';
+    
+    try {
+        // 后台加载模型
+        loadModel();
     } catch (error) {
-        console.error('模型后台加载失败:', error);
+        console.error('初始化错误:', error);
+        loadingIndicator.textContent = '加载失败: ' + error.message;
+    }
+}
+
+// 加载模型
+async function loadModel() {
+    try {
+        console.time('模型加载时间');
+        model = await cocoSsd.load();
+        console.timeEnd('模型加载时间');
+        
         isModelLoading = false;
-    }
-}
-
-// 检查iOS设备
-function checkIOSDevice() {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (isIOS) {
-        console.log('检测到iOS设备，使用特定处理');
-        // 为iOS设备添加特定处理
-        document.documentElement.style.height = '100%';
-        document.body.style.height = '100%';
-    }
-}
-
-// 开始摄像头
-async function startCamera() {
-    try {
-        // 获取摄像头流
-        const constraints = {
-            video: {
-                facingMode: 'environment', // 使用后置摄像头
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            },
-            audio: false
-        };
-        
-        console.log('请求摄像头权限...');
-        stream = await navigator.mediaDevices.getUserMedia(constraints);
-        console.log('摄像头权限已获取');
-        
-        // 对于iOS设备的特殊处理
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        if (isIOS) {
-            // 在iOS上，我们可能需要明确设置srcObject
-            if ('srcObject' in video) {
-                video.srcObject = stream;
-            } else {
-                // 旧版浏览器回退
-                video.src = window.URL.createObjectURL(stream);
-            }
-        } else {
-            video.srcObject = stream;
-        }
-        
-        // 确保视频播放
-        video.play().catch(e => console.error('视频播放失败:', e));
-        
-        return new Promise((resolve) => {
-            video.onloadedmetadata = () => {
-                // 设置画布尺寸与视频相同
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                
-                // 确保视频元素填满容器
-                video.style.width = '100%';
-                video.style.height = 'auto';
-                canvas.style.width = '100%';
-                canvas.style.height = 'auto';
-                
-                console.log(`视频尺寸: ${video.videoWidth}x${video.videoHeight}`);
-                resolve();
-            };
-        });
-    } catch (error) {
-        console.error('摄像头访问失败:', error);
-        
-        // 提供更具体的错误信息
-        if (error.name === 'NotAllowedError') {
-            throw new Error('摄像头访问被拒绝。请在浏览器设置中允许摄像头访问，然后刷新页面。');
-        } else if (error.name === 'NotFoundError') {
-            throw new Error('找不到摄像头设备。请确保您的设备有可用的摄像头。');
-        } else if (error.name === 'NotReadableError') {
-            throw new Error('摄像头已被其他应用程序占用。请关闭其他可能使用摄像头的应用，然后刷新页面。');
-        } else {
-            throw new Error(`无法访问摄像头: ${error.message}。请确保您已授权浏览器使用摄像头。`);
-        }
-    }
-}
-
-// 开始识别
-async function startDetection() {
-    if (isRunning) return;
-    
-    try {
-        startBtn.disabled = true;
-        startBtn.textContent = '正在启动...';
-        
-        // 清除之前的结果
-        predictionsEl.innerHTML = '';
-        
-        // 重新加载最新设置
-        loadSettings();
-        console.log('已加载设置:', settings);
-        
-        // 显示加载提示
-        if (!model) {
-            showLoadingIndicator('正在加载模型...');
-        }
-        
-        // 确保模型已加载
-        if (!model) {
-            console.log('开始加载模型...');
-            try {
-                model = await cocoSsd.load();
-                console.log('模型加载完成');
-            } catch (modelError) {
-                throw new Error(`模型加载失败: ${modelError.message}`);
-            }
-        }
-        
-        // 隐藏加载提示，显示摄像头加载提示
-        hideLoadingIndicator();
-        showLoadingIndicator('正在启动摄像头...');
-        
-        // 隐藏摄像头占位符
-        if (cameraPlaceholder) {
-            cameraPlaceholder.style.display = 'none';
-        }
-        
-        // 启动摄像头
-        await startCamera();
-        hideLoadingIndicator();
-        
-        // 显示相机聚焦效果
-        if (cameraFocus) {
-            cameraFocus.style.opacity = '1';
-        }
-        
-        isRunning = true;
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-        
-        // 开始检测循环
-        console.log('开始物体检测');
-        detectObjects();
-    } catch (error) {
-        console.error('启动失败:', error);
-        hideLoadingIndicator();
-        
-        // 显示摄像头占位符
-        if (cameraPlaceholder) {
-            cameraPlaceholder.style.display = 'flex';
-            const spanElement = cameraPlaceholder.querySelector('span');
-            if (spanElement) {
-                spanElement.textContent = '启动失败: ' + error.message;
-            }
-        }
-        
-        alert(error.message);
-        startBtn.disabled = false;
-        startBtn.textContent = '开始识别';
-    }
-}
-
-// 停止识别
-function stopDetection() {
-    if (!isRunning) return;
-    
-    // 停止动画
-    if (animationId) {
-        cancelAnimationFrame(animationId);
-        animationId = null;
-    }
-    
-    // 停止视频流
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        video.srcObject = null;
-    }
-    
-    // 清除画布
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // 清除结果
-    predictionsEl.innerHTML = '';
-    
-    // 隐藏相机聚焦效果
-    if (cameraFocus) {
-        cameraFocus.style.opacity = '0';
-    }
-    
-    // 显示摄像头占位符
-    if (cameraPlaceholder) {
-        cameraPlaceholder.style.display = 'flex';
-        const spanElement = cameraPlaceholder.querySelector('span');
-        if (spanElement) {
-            spanElement.textContent = '准备就绪，点击下方按钮开始';
-        }
-    }
-    
-    // 更新状态
-    isRunning = false;
-    startBtn.disabled = false;
-    stopBtn.disabled = true;
-}
-
-// 物体检测循环
-async function detectObjects() {
-    if (!isRunning) return;
-    
-    try {
-        // 检查模型是否已加载
-        if (!model) {
-            console.log('模型未加载，尝试重新加载...');
-            model = await cocoSsd.load();
-        }
-        
-        // 检查视频流是否正常
-        if (!video.srcObject || !video.srcObject.active) {
-            console.log('视频流异常，尝试重新获取...');
-            await startCamera();
-        }
-        
-        // 检查视频是否已准备好
-        if (video.readyState !== 4) {
-            console.log('视频尚未准备好，等待中...');
-            setTimeout(() => {
-                animationId = requestAnimationFrame(detectObjects);
-            }, 500);
-            return;
-        }
-        
-        // 确保画布尺寸正确
-        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            console.log(`调整画布尺寸: ${canvas.width}x${canvas.height}`);
-        }
-        
-        console.log('执行检测...');
-        // 执行检测
-        const predictions = await model.detect(video, settings.maxDetections);
-        console.log('检测结果:', predictions);
-        
-        // 清除画布和预测结果
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        predictionsEl.innerHTML = '';
-        
-        // 处理检测结果
-        drawPredictions(predictions);
-        
-        // 定时循环
+        loadingIndicator.textContent = '模型加载完成，准备就绪';
         setTimeout(() => {
-            animationId = requestAnimationFrame(detectObjects);
-        }, settings.updateInterval);
+            loadingIndicator.style.opacity = '0';
+            setTimeout(() => loadingIndicator.style.display = 'none', 300);
+        }, 1000);
     } catch (error) {
-        console.error('检测过程中发生错误:', error);
-        
-        // 尝试恢复三次，如果仍然失败则停止
-        if (!window.retryCount) {
-            window.retryCount = 1;
-        } else {
-            window.retryCount++;
-        }
-        
-        if (window.retryCount <= 3) {
-            console.log(`尝试恢复 (${window.retryCount}/3)...`);
-            
-            // 短暂延迟后重试
-            setTimeout(() => {
-                animationId = requestAnimationFrame(detectObjects);
-            }, 1000);
-        } else {
-            // 重置计数
-            window.retryCount = 0;
-            stopDetection();
-            alert('检测过程中发生错误，已停止识别。请检查网络连接并刷新页面重试。');
-        }
-    }
-}
-
-// 绘制检测结果
-function drawPredictions(predictions) {
-    // 过滤掉低置信度的预测
-    const filteredPredictions = predictions.filter(pred => 
-        pred.score >= settings.detectionThreshold
-    );
-    
-    // 遍历检测结果
-    filteredPredictions.forEach((prediction, index) => {
-        const [x, y, width, height] = prediction.bbox;
-        const label = prediction.class;
-        const score = Math.round(prediction.score * 100);
-        
-        // 获取中文标签
-        const chineseLabel = labelMap[label] || label;
-        
-        // 在画布上绘制边界框
-        if (settings.showBoundingBox) {
-            // 获取物体的颜色
-            const color = colorMap[label] || colorMap['default'];
-            
-            // 绘制边界框
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.strokeRect(x, y, width, height);
-            
-            // 添加辅助线条效果（角落增强）
-            const cornerLength = Math.min(width, height) * 0.2; // 角落长度
-            ctx.beginPath();
-            
-            // 左上角
-            ctx.moveTo(x, y + cornerLength);
-            ctx.lineTo(x, y);
-            ctx.lineTo(x + cornerLength, y);
-            
-            // 右上角
-            ctx.moveTo(x + width - cornerLength, y);
-            ctx.lineTo(x + width, y);
-            ctx.lineTo(x + width, y + cornerLength);
-            
-            // 右下角
-            ctx.moveTo(x + width, y + height - cornerLength);
-            ctx.lineTo(x + width, y + height);
-            ctx.lineTo(x + width - cornerLength, y + height);
-            
-            // 左下角
-            ctx.moveTo(x + cornerLength, y + height);
-            ctx.lineTo(x, y + height);
-            ctx.lineTo(x, y + height - cornerLength);
-            
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // 设置文本样式
-            ctx.font = 'bold 16px Arial';
-            const labelText = `${chineseLabel}: ${score}%`;
-            const textMetrics = ctx.measureText(labelText);
-            const textWidth = textMetrics.width + 20; // 添加一些内边距
-            const textHeight = 30;
-            
-            // 根据物体在画布中的位置调整标签位置
-            let textX = x;
-            let textY = y - textHeight - 5; // 默认在物体上方
-            
-            // 检查是否超出顶部边界
-            if (textY < 10) {
-                textY = y + height + textHeight; // 改为在物体下方显示
-            }
-            
-            // 检查是否超出右侧边界
-            if (textX + textWidth > canvas.width) {
-                textX = canvas.width - textWidth - 5; // 确保不超出右边界
-            }
-            
-            // 检查是否超出左侧边界
-            if (textX < 5) {
-                textX = 5; // 确保不超出左边界
-            }
-            
-            // 创建标签背景渐变
-            const bgColor = color;
-            const gradient = ctx.createLinearGradient(textX, textY, textX + textWidth, textY);
-            gradient.addColorStop(0, bgColor + 'DD'); // 半透明
-            gradient.addColorStop(1, bgColor + '77'); // 更透明
-            
-            // 绘制标签背景（带圆角）
-            ctx.fillStyle = gradient;
-            const radius = 4;
-            ctx.beginPath();
-            ctx.moveTo(textX + radius, textY);
-            ctx.lineTo(textX + textWidth - radius, textY);
-            ctx.quadraticCurveTo(textX + textWidth, textY, textX + textWidth, textY + radius);
-            ctx.lineTo(textX + textWidth, textY + textHeight - radius);
-            ctx.quadraticCurveTo(textX + textWidth, textY + textHeight, textX + textWidth - radius, textY + textHeight);
-            ctx.lineTo(textX + radius, textY + textHeight);
-            ctx.quadraticCurveTo(textX, textY + textHeight, textX, textY + textHeight - radius);
-            ctx.lineTo(textX, textY + radius);
-            ctx.quadraticCurveTo(textX, textY, textX + radius, textY);
-            ctx.closePath();
-            ctx.fill();
-            
-            // 添加连接线（从物体到标签）
-            ctx.beginPath();
-            ctx.moveTo(x + width/2, textY < y ? textY + textHeight : textY);
-            ctx.lineTo(x + width/2, textY < y ? y : y + height);
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1;
-            ctx.setLineDash([3, 3]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            
-            // 绘制标签文字（白色，带细微阴影效果）
-            ctx.fillStyle = 'white';
-            ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = 2;
-            ctx.shadowOffsetX = 1;
-            ctx.shadowOffsetY = 1;
-            ctx.fillText(labelText, textX + 10, textY + 20);
-            
-            // 重置阴影效果
-            ctx.shadowColor = 'transparent';
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
-        }
-        
-        // 更新预测结果列表（使用相同的颜色）
-        const predItem = document.createElement('div');
-        predItem.className = 'prediction-item';
-        predItem.style.borderLeftColor = colorMap[label] || colorMap['default'];
-        predItem.innerHTML = `<strong>${chineseLabel}</strong>: ${score}%`;
-        predictionsEl.appendChild(predItem);
-    });
-    
-    // 显示未检测到物体的消息
-    if (filteredPredictions.length === 0) {
-        const noPredItem = document.createElement('div');
-        noPredItem.className = 'prediction-item';
-        noPredItem.innerHTML = '未检测到任何物体';
-        predictionsEl.appendChild(noPredItem);
+        console.error('模型加载错误:', error);
+        loadingIndicator.textContent = '模型加载失败: ' + error.message;
     }
 }
 
@@ -609,17 +312,1299 @@ function loadSettings() {
     const savedSettings = localStorage.getItem('hengtaiVisionSettings');
     if (savedSettings) {
         try {
-            const parsedSettings = JSON.parse(savedSettings);
-            Object.assign(settings, parsedSettings);
+            const settings = JSON.parse(savedSettings);
+            // 应用设置
+            applySettings(settings);
         } catch (e) {
             console.error('加载设置失败:', e);
         }
     }
 }
 
-// 事件监听器
-startBtn.addEventListener('click', startDetection);
-stopBtn.addEventListener('click', stopDetection);
+// 应用设置
+function applySettings(settings) {
+    // 这里可以根据需要应用不同的设置
+    // 例如设置检测阈值、最大检测数量等
+    if (settings) {
+        if (settings.detectionThreshold) {
+            // 设置检测阈值
+        }
+        
+        if (settings.maxDetections) {
+            // 设置最大检测数量
+        }
+    }
+}
+
+// 开始检测 - 更新为使用优化的视频约束
+async function startDetection() {
+    if (isModelLoading) {
+        loadingIndicator.textContent = '模型正在加载，请稍候...';
+        return;
+    }
+    
+    // 禁用开始按钮，启用停止按钮
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    
+    try {
+        // 获取优化的视频约束
+        const videoConstraints = getOptimalVideoConstraints();
+        
+        // 获取摄像头权限
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints
+        });
+        
+        // 设置视频源
+        video.srcObject = stream;
+        
+        // 调整画布大小
+        video.onloadedmetadata = () => {
+            resizeCanvas();
+            // 隐藏相机占位符
+            cameraPlaceholder.style.display = 'none';
+            
+            console.log(`视频分辨率: ${video.videoWidth}x${video.videoHeight}`);
+        };
+        
+        // 开始检测循环
+        isDetecting = true;
+        startDetectionLoop();
+        
+        // 启用保存按钮
+        saveBtn.disabled = false;
+        
+    } catch (error) {
+        console.error('摄像头访问错误:', error);
+        
+        // 尝试降级到基本视频模式
+        if (error.name === 'OverconstrainedError' || error.name === 'NotReadableError') {
+            try {
+                console.log('尝试降级到基本视频模式');
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: true // 使用默认设置
+                });
+                
+                // 设置视频源
+                video.srcObject = stream;
+                
+                // 调整画布大小
+                video.onloadedmetadata = () => {
+                    resizeCanvas();
+                    // 隐藏相机占位符
+                    cameraPlaceholder.style.display = 'none';
+                };
+                
+                // 开始检测循环
+                isDetecting = true;
+                startDetectionLoop();
+                return;
+            } catch (fallbackError) {
+                console.error('降级摄像头访问也失败:', fallbackError);
+            }
+        }
+        
+        loadingIndicator.textContent = '摄像头访问失败: ' + error.message;
+        loadingIndicator.style.display = 'block';
+        loadingIndicator.style.opacity = '1';
+        
+        // 重置按钮状态
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        saveBtn.disabled = true;
+    }
+}
+
+// 优化画布大小调整函数
+function resizeCanvas() {
+    if (video.videoWidth) {
+        // 获取容器尺寸
+        const container = document.querySelector('.camera-container');
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // 计算视频宽高比
+        const videoRatio = video.videoWidth / video.videoHeight;
+        
+        // 调整画布大小以匹配容器
+        let canvasWidth, canvasHeight;
+        
+        if (containerWidth / containerHeight > videoRatio) {
+            // 容器更宽，以高度为准
+            canvasHeight = containerHeight;
+            canvasWidth = canvasHeight * videoRatio;
+        } else {
+            // 容器更高，以宽度为准
+            canvasWidth = containerWidth;
+            canvasHeight = canvasWidth / videoRatio;
+        }
+        
+        // 设置画布尺寸
+        const capabilities = detectDeviceCapabilities();
+        const scaleFactor = capabilities.isHighDensity ? Math.min(window.devicePixelRatio, 2) : devicePixelRatio;
+        
+        canvas.width = canvasWidth * scaleFactor;
+        canvas.height = canvasHeight * scaleFactor;
+        
+        // 设置画布CSS尺寸
+        canvas.style.width = `${canvasWidth}px`;
+        canvas.style.height = `${canvasHeight}px`;
+        
+        // 调整渲染上下文比例
+        ctx.scale(scaleFactor, scaleFactor);
+        
+        console.log(`画布已调整: ${canvasWidth}x${canvasHeight}, 设备像素比: ${scaleFactor}`);
+    }
+}
+
+// 开始检测循环
+function startDetectionLoop(overrideSettings) {
+    // 获取更新间隔设置
+    const savedSettings = localStorage.getItem('hengtaiVisionSettings');
+    let updateInterval = 100; // 默认值
+    
+    if (overrideSettings && overrideSettings.updateInterval) {
+        // 使用临时覆盖设置
+        updateInterval = overrideSettings.updateInterval;
+    } else if (savedSettings) {
+        try {
+            const settings = JSON.parse(savedSettings);
+            if (settings.updateInterval) {
+                updateInterval = settings.updateInterval;
+                originalUpdateInterval = updateInterval; // 记录原始设置
+            }
+        } catch (e) {
+            console.error('读取设置失败:', e);
+        }
+    }
+    
+    // 如果低电量且是移动设备，增加间隔减少耗电
+    if (lowBattery && isMobileDevice && !isReducedFrameRate) {
+        updateInterval = Math.min(updateInterval * 2, 1000);
+        isReducedFrameRate = true;
+    }
+    
+    // 使用requestAnimationFrame进行高效渲染
+    function detectFrame() {
+        if (!isDetecting || !pageVisible) return;
+        
+        const now = performance.now();
+        const elapsed = now - lastDetectionTime;
+        
+        // 绘制视频帧到画布
+        drawVideoFrame();
+        
+        // 只有当间隔时间达到设置值且没有待处理的检测时才执行新的检测
+        if (elapsed >= updateInterval && !pendingDetection) {
+            pendingDetection = true;
+            lastDetectionTime = now;
+            
+            // 执行物体检测
+            detectObjects().then(() => {
+                pendingDetection = false;
+            });
+        }
+        
+        // 请求下一帧
+        animationFrameId = requestAnimationFrame(detectFrame);
+    }
+    
+    // 开始循环
+    animationFrameId = requestAnimationFrame(detectFrame);
+}
+
+// 绘制视频帧到画布
+function drawVideoFrame() {
+    if (!video.paused && !video.ended) {
+        const containerWidth = canvas.width / devicePixelRatio;
+        const containerHeight = canvas.height / devicePixelRatio;
+        
+        // 清除画布
+        ctx.clearRect(0, 0, containerWidth, containerHeight);
+        
+        // 在画布上绘制视频帧
+        ctx.drawImage(
+            video,
+            0, 0, video.videoWidth, video.videoHeight,
+            0, 0, containerWidth, containerHeight
+        );
+    }
+}
+
+// 检测物体
+async function detectObjects() {
+    if (!model || !video.readyState || video.paused || video.ended) return;
+    
+    try {
+        // 获取设置
+        let threshold = 0.5; // 默认阈值
+        let maxDetections = 10; // 默认最大检测数量
+        let showBoundingBox = true; // 默认显示边界框
+        
+        const savedSettings = localStorage.getItem('hengtaiVisionSettings');
+        if (savedSettings) {
+            try {
+                const settings = JSON.parse(savedSettings);
+                threshold = settings.detectionThreshold || threshold;
+                maxDetections = settings.maxDetections || maxDetections;
+                showBoundingBox = settings.showBoundingBox !== undefined ? 
+                                 settings.showBoundingBox : showBoundingBox;
+            } catch (e) {
+                console.error('读取设置失败:', e);
+            }
+        }
+        
+        // 执行检测
+        const predictions = await model.detect(video);
+        
+        // 过滤低置信度结果和限制数量
+        const filteredPredictions = predictions
+            .filter(prediction => prediction.score >= threshold)
+            .slice(0, maxDetections);
+        
+        // 绘制检测结果
+        if (showBoundingBox) {
+            drawPredictions(filteredPredictions);
+        }
+        
+        // 更新结果列表
+        updatePredictionsList(filteredPredictions);
+        
+    } catch (error) {
+        console.error('检测错误:', error);
+    }
+}
+
+// 绘制预测结果
+function drawPredictions(predictions) {
+    const canvasWidth = canvas.width / devicePixelRatio;
+    const canvasHeight = canvas.height / devicePixelRatio;
+    
+    // 获取视频在画布上的实际尺寸
+    const videoRatio = video.videoWidth / video.videoHeight;
+    const canvasRatio = canvasWidth / canvasHeight;
+    
+    let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+    
+    if (videoRatio > canvasRatio) {
+        // 视频更宽，有水平边界
+        drawHeight = canvasHeight;
+        drawWidth = drawHeight * videoRatio;
+        offsetX = (canvasWidth - drawWidth) / 2;
+    } else {
+        // 视频更高，有垂直边界
+        drawWidth = canvasWidth;
+        drawHeight = drawWidth / videoRatio;
+        offsetY = (canvasHeight - drawHeight) / 2;
+    }
+    
+    // 计算缩放比例
+    const scaleX = drawWidth / video.videoWidth;
+    const scaleY = drawHeight / video.videoHeight;
+    
+    predictions.forEach(prediction => {
+        // 获取预测数据
+        const [x, y, width, height] = prediction.bbox;
+        const label = prediction.class;
+        const score = Math.round(prediction.score * 100);
+        
+        // 确定颜色
+        let color = colorMap.default;
+        // 检查物体类别属于哪个组
+        for (const category in categoryGroups) {
+            if (categoryGroups[category].includes(label)) {
+                color = colorMap[category];
+                break;
+            }
+        }
+        
+        // 如果是人，直接使用人的颜色
+        if (label === 'person') {
+            color = colorMap.person;
+        }
+        
+        // 计算调整后的位置和大小
+        const scaledX = x * scaleX + offsetX;
+        const scaledY = y * scaleY + offsetY;
+        const scaledWidth = width * scaleX;
+        const scaledHeight = height * scaleY;
+        
+        // 设置边界框样式
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        
+        // 绘制边界框
+        ctx.beginPath();
+        ctx.rect(scaledX, scaledY, scaledWidth, scaledHeight);
+        ctx.stroke();
+        
+        // 创建标签背景
+        const chineseLabel = labelMap[label] || label;
+        const labelText = `${chineseLabel} ${score}%`;
+        const textMetrics = ctx.measureText(labelText);
+        const labelWidth = textMetrics.width + 10;
+        const labelHeight = 24;
+        
+        // 绘制标签背景
+        ctx.fillStyle = color;
+        ctx.fillRect(scaledX, scaledY - labelHeight, labelWidth, labelHeight);
+        
+        // 设置文本样式
+        ctx.fillStyle = 'white';
+        ctx.font = '14px Arial, PingFang SC, Microsoft YaHei';
+        ctx.textBaseline = 'middle';
+        
+        // 绘制标签文本
+        ctx.fillText(labelText, scaledX + 5, scaledY - labelHeight / 2);
+    });
+}
+
+// 更新预测结果列表
+function updatePredictionsList(predictions) {
+    // 清除旧结果
+    predictionsEl.innerHTML = '';
+    
+    if (predictions.length === 0) {
+        predictionsEl.innerHTML = '<div class="no-predictions">未检测到物体</div>';
+        return;
+    }
+    
+    // 创建新结果项
+    predictions.forEach(prediction => {
+        const label = prediction.class;
+        const score = Math.round(prediction.score * 100);
+        const chineseLabel = labelMap[label] || label;
+        
+        // 确定颜色
+        let color = colorMap.default;
+        let category = 'default';
+        
+        // 检查物体类别属于哪个组
+        for (const cat in categoryGroups) {
+            if (categoryGroups[cat].includes(label)) {
+                color = colorMap[cat];
+                category = cat;
+                break;
+            }
+        }
+        
+        // 如果是人，直接使用人的颜色和类别
+        if (label === 'person') {
+            color = colorMap.person;
+            category = 'person';
+        }
+        
+        // 创建结果项元素
+        const predictionItem = document.createElement('div');
+        predictionItem.className = 'prediction-item';
+        predictionItem.style.borderLeftColor = color;
+        
+        // 添加分类图标
+        let categoryIcon = '';
+        switch (category) {
+            case 'person':
+                categoryIcon = '<i class="category-icon">👤</i>';
+                break;
+            case 'vehicle':
+                categoryIcon = '<i class="category-icon">🚗</i>';
+                break;
+            case 'animal':
+                categoryIcon = '<i class="category-icon">🐾</i>';
+                break;
+            case 'food':
+                categoryIcon = '<i class="category-icon">🍔</i>';
+                break;
+            case 'furniture':
+                categoryIcon = '<i class="category-icon">🪑</i>';
+                break;
+            case 'electronic':
+                categoryIcon = '<i class="category-icon">💻</i>';
+                break;
+            default:
+                categoryIcon = '<i class="category-icon">📦</i>';
+        }
+        
+        // 设置HTML内容
+        predictionItem.innerHTML = `
+            ${categoryIcon}
+            <div class="prediction-details">
+                <div class="prediction-label">${chineseLabel}</div>
+                <div class="prediction-score">置信度: ${score}%</div>
+            </div>
+        `;
+        
+        // 添加到结果列表
+        predictionsEl.appendChild(predictionItem);
+    });
+}
+
+// 停止检测
+function stopDetection() {
+    isDetecting = false;
+    
+    // 取消动画帧
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+    
+    // 关闭摄像头
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+    
+    // 清除视频源
+    video.srcObject = null;
+    
+    // 清除画布
+    ctx.clearRect(0, 0, canvas.width / devicePixelRatio, canvas.height / devicePixelRatio);
+    
+    // 显示相机占位符
+    cameraPlaceholder.style.display = 'flex';
+    
+    // 重置按钮状态
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    saveBtn.disabled = true;
+    
+    // 清除结果列表
+    predictionsEl.innerHTML = '';
+}
+
+// 帮助按钮点击事件
+if (helpBtn) {
+    helpBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        showHelp();
+    });
+}
+
+// 关闭帮助按钮点击事件
+if (closeHelpBtn) {
+    closeHelpBtn.addEventListener('click', function() {
+        hideHelp();
+    });
+}
+
+// 查看教程按钮点击事件
+if (startTutorialBtn) {
+    startTutorialBtn.addEventListener('click', function() {
+        // 可以跳转到详细教程页面，或者展示更多教程内容
+        hideHelp();
+        alert('详细教程正在开发中，敬请期待！');
+    });
+}
+
+// 点击覆盖层背景关闭帮助（但点击内容区域不关闭）
+if (helpOverlay) {
+    helpOverlay.addEventListener('click', function(e) {
+        if (e.target === helpOverlay) {
+            hideHelp();
+        }
+    });
+}
+
+// ESC键关闭帮助
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && helpOverlay && helpOverlay.classList.contains('active')) {
+        hideHelp();
+    }
+});
+
+// 显示帮助覆盖层
+function showHelp() {
+    if (helpOverlay) {
+        helpOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden'; // 防止背景滚动
+    }
+}
+
+// 隐藏帮助覆盖层
+function hideHelp() {
+    if (helpOverlay) {
+        helpOverlay.classList.remove('active');
+        document.body.style.overflow = ''; // 恢复背景滚动
+    }
+}
+
+// 首次访问自动显示帮助（可选，取消注释启用）
+/*
+document.addEventListener('DOMContentLoaded', function() {
+    // 检查是否是首次访问
+    const hasVisitedBefore = localStorage.getItem('hengtaiVisionHasVisited');
+    
+    if (!hasVisitedBefore) {
+        // 标记为已访问
+        localStorage.setItem('hengtaiVisionHasVisited', 'true');
+        
+        // 延迟显示帮助，让页面先加载完成
+        setTimeout(showHelp, 1000);
+    }
+});
+*/
 
 // 页面加载完成后初始化
-window.addEventListener('load', init); 
+window.addEventListener('load', init);
+
+// 处理电池状态
+function handleBatteryStatus(battery) {
+    const wasPreviouslyLowBattery = lowBattery;
+    
+    // 如果电量低于阈值且未充电，则进入低电量模式
+    lowBattery = battery.level < lowBatteryThreshold && !battery.charging;
+    
+    // 如果低电量状态改变且正在检测，调整性能设置
+    if (wasPreviouslyLowBattery !== lowBattery && isDetecting) {
+        if (lowBattery) {
+            enterLowPowerMode();
+        } else {
+            exitLowPowerMode();
+        }
+    }
+    
+    console.log(`电池状态: ${Math.round(battery.level * 100)}%, 充电中: ${battery.charging}`);
+    console.log(`低电量模式: ${lowBattery ? '已启用' : '已禁用'}`);
+}
+
+// 进入低电量模式
+function enterLowPowerMode() {
+    if (!isReducedFrameRate) {
+        isReducedFrameRate = true;
+        
+        // 获取当前更新间隔
+        const savedSettings = localStorage.getItem('hengtaiVisionSettings');
+        if (savedSettings) {
+            try {
+                const settings = JSON.parse(savedSettings);
+                if (settings.updateInterval) {
+                    originalUpdateInterval = settings.updateInterval;
+                }
+            } catch (e) {
+                console.error('读取设置失败:', e);
+            }
+        }
+        
+        // 如果正在检测，通知用户
+        if (isDetecting) {
+            // 创建通知元素
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = '低电量模式已启用，帧率已降低以节省电量';
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.left = '50%';
+            notification.style.transform = 'translateX(-50%)';
+            notification.style.padding = '10px 20px';
+            notification.style.background = 'rgba(255, 159, 10, 0.95)';
+            notification.style.color = 'white';
+            notification.style.borderRadius = '8px';
+            notification.style.zIndex = '1000';
+            
+            // 添加到文档
+            document.body.appendChild(notification);
+            
+            // 2秒后移除
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 2000);
+        }
+        
+        // 调整检测间隔为原来的2倍
+        const newInterval = Math.min(originalUpdateInterval * 2, 1000);
+        
+        // 临时修改设置
+        const tempSettings = { updateInterval: newInterval };
+        
+        // 应用临时设置
+        if (isDetecting) {
+            // 停止当前检测循环
+            cancelAnimationFrame(animationFrameId);
+            
+            // 使用新设置重新开始检测循环
+            startDetectionLoop(tempSettings);
+        }
+    }
+}
+
+// 退出低电量模式
+function exitLowPowerMode() {
+    if (isReducedFrameRate) {
+        isReducedFrameRate = false;
+        
+        // 如果正在检测，恢复原来的帧率
+        if (isDetecting) {
+            // 停止当前检测循环
+            cancelAnimationFrame(animationFrameId);
+            
+            // 使用原始设置重新开始检测循环
+            const tempSettings = { updateInterval: originalUpdateInterval };
+            startDetectionLoop(tempSettings);
+            
+            // 通知用户
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = '已退出低电量模式，帧率已恢复';
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.left = '50%';
+            notification.style.transform = 'translateX(-50%)';
+            notification.style.padding = '10px 20px';
+            notification.style.background = 'rgba(52, 199, 89, 0.95)';
+            notification.style.color = 'white';
+            notification.style.borderRadius = '8px';
+            notification.style.zIndex = '1000';
+            
+            // 添加到文档
+            document.body.appendChild(notification);
+            
+            // 2秒后移除
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 2000);
+        }
+    }
+}
+
+// 处理页面可见性变化
+function handleVisibilityChange() {
+    pageVisible = document.visibilityState === 'visible';
+    
+    if (isDetecting) {
+        if (!pageVisible) {
+            // 页面不可见时暂停检测
+            pauseDetection();
+        } else {
+            // 页面可见时恢复检测
+            resumeDetection();
+        }
+    }
+}
+
+// 暂停检测
+function pauseDetection() {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+    
+    console.log('检测已暂停（页面不可见）');
+}
+
+// 恢复检测
+function resumeDetection() {
+    if (!animationFrameId && isDetecting) {
+        startDetectionLoop();
+        console.log('检测已恢复（页面可见）');
+    }
+}
+
+// 处理设备方向变化
+function handleOrientationChange() {
+    // 方向变化时重新调整画布大小
+    setTimeout(resizeCanvas, 300); // 延迟一点以等待方向变化完成
+}
+
+// 更新窗口大小调整处理函数
+function handleResize() {
+    // 检测设备方向变化
+    const newIsLandscape = window.innerWidth > window.innerHeight;
+    const oldCapabilities = detectDeviceCapabilities();
+    
+    // 如果是移动设备且方向发生变化，可能需要重新启动视频
+    if (oldCapabilities.isMobile && newIsLandscape !== oldCapabilities.isLandscape && isDetecting) {
+        // 如果正在检测，先停止当前视频流
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        
+        // 延迟一点以等待方向变化完成
+        setTimeout(() => {
+            // 重新开始检测
+            startDetection();
+        }, 500);
+        return;
+    }
+    
+    // 大小变化时重新调整画布大小
+    resizeCanvas();
+    
+    // 如果是移动设备，降低暂时性的UI更新频率
+    if (oldCapabilities.isMobile && isDetecting) {
+        // 暂停检测以减少负载
+        let wasPaused = false;
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+            wasPaused = true;
+        }
+        
+        // 短暂延迟后恢复检测
+        if (wasPaused) {
+            setTimeout(() => {
+                if (isDetecting && !animationFrameId) {
+                    startDetectionLoop();
+                }
+            }, 500);
+        }
+    }
+}
+
+// 添加保存按钮事件监听
+if (saveBtn) {
+    saveBtn.addEventListener('click', function() {
+        if (isDetecting) {
+            prepareSaveResult();
+        }
+    });
+}
+
+// 准备保存识别结果
+function prepareSaveResult() {
+    // 捕获当前画面和识别结果
+    const captureCanvas = document.createElement('canvas');
+    captureCanvas.width = canvas.width;
+    captureCanvas.height = canvas.height;
+    const captureCtx = captureCanvas.getContext('2d');
+    
+    // 绘制当前画布内容到捕获画布
+    captureCtx.drawImage(canvas, 0, 0);
+    
+    // 获取图像数据URL
+    const imageDataURL = captureCanvas.toDataURL('image/jpeg');
+    
+    // 设置预览图像
+    savePreview.src = imageDataURL;
+    
+    // 获取当前识别的物体
+    const detectedObjects = [];
+    const predictionItems = document.querySelectorAll('.prediction-item');
+    
+    predictionItems.forEach(item => {
+        const label = item.querySelector('.prediction-label').textContent;
+        const score = item.querySelector('.prediction-score').textContent;
+        detectedObjects.push({ label, score });
+    });
+    
+    // 设置默认名称
+    const now = new Date();
+    const defaultName = `识别结果_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`;
+    saveName.value = defaultName;
+    
+    // 临时存储当前识别数据
+    saveDialog.dataset.imageData = imageDataURL;
+    saveDialog.dataset.detectedObjects = JSON.stringify(detectedObjects);
+    saveDialog.dataset.timestamp = now.toISOString();
+    
+    // 显示保存对话框
+    saveDialog.classList.add('active');
+}
+
+// 保存识别结果
+function saveResult() {
+    const name = saveName.value.trim() || '未命名结果';
+    const imageData = saveDialog.dataset.imageData;
+    const detectedObjects = JSON.parse(saveDialog.dataset.detectedObjects || '[]');
+    const timestamp = saveDialog.dataset.timestamp;
+    
+    // 创建结果对象
+    const resultItem = {
+        id: generateUniqueId(),
+        name,
+        imageData,
+        detectedObjects,
+        timestamp,
+        objectCount: detectedObjects.length
+    };
+    
+    // 保存到本地存储
+    saveToHistory(resultItem);
+    
+    // 关闭对话框
+    saveDialog.classList.remove('active');
+    
+    // 显示成功通知
+    showNotification('识别结果已保存', 'success');
+}
+
+// 生成唯一ID
+function generateUniqueId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
+// 保存到历史记录
+function saveToHistory(item) {
+    // 从本地存储获取历史记录
+    let historyItems = getHistoryItems();
+    
+    // 添加新项到历史记录
+    historyItems.unshift(item);
+    
+    // 限制历史记录数量（最多保存20条）
+    if (historyItems.length > 20) {
+        historyItems = historyItems.slice(0, 20);
+    }
+    
+    // 保存回本地存储
+    localStorage.setItem('hengtaiVisionHistory', JSON.stringify(historyItems));
+    
+    // 如果历史面板是打开的，更新显示
+    if (historyPanel.classList.contains('active')) {
+        updateHistoryPanel();
+    }
+}
+
+// 获取历史记录项
+function getHistoryItems() {
+    const historyStr = localStorage.getItem('hengtaiVisionHistory');
+    return historyStr ? JSON.parse(historyStr) : [];
+}
+
+// 显示历史记录面板
+function showHistoryPanel() {
+    updateHistoryPanel();
+    historyPanel.classList.add('active');
+    
+    // 添加点击外部关闭功能
+    document.addEventListener('click', handleOutsideHistoryClick);
+}
+
+// 更新历史记录面板
+function updateHistoryPanel() {
+    const historyItems = getHistoryItems();
+    
+    // 清空现有内容
+    historyContent.innerHTML = '';
+    
+    if (historyItems.length === 0) {
+        // 如果没有历史记录，显示空状态
+        const emptyEl = document.createElement('div');
+        emptyEl.className = 'history-empty';
+        emptyEl.textContent = '暂无保存的识别记录';
+        historyContent.appendChild(emptyEl);
+    } else {
+        // 创建历史记录项
+        historyItems.forEach(item => {
+            const historyItemEl = createHistoryItemElement(item);
+            historyContent.appendChild(historyItemEl);
+        });
+    }
+}
+
+// 创建历史记录项元素
+function createHistoryItemElement(item) {
+    const el = document.createElement('div');
+    el.className = 'history-item';
+    el.dataset.id = item.id;
+    
+    // 创建标题和时间戳
+    const header = document.createElement('div');
+    header.className = 'history-item-header';
+    
+    const title = document.createElement('div');
+    title.className = 'history-item-title';
+    title.textContent = item.name;
+    
+    const timestamp = document.createElement('div');
+    timestamp.className = 'history-timestamp';
+    timestamp.textContent = formatTimestamp(item.timestamp);
+    
+    header.appendChild(title);
+    header.appendChild(timestamp);
+    
+    // 创建图像
+    const image = document.createElement('img');
+    image.className = 'history-item-image';
+    image.src = item.imageData;
+    image.alt = item.name;
+    
+    // 创建信息
+    const info = document.createElement('div');
+    info.className = 'history-item-info';
+    info.textContent = `检测到 ${item.objectCount} 个物体`;
+    
+    // 创建标签容器
+    const tagsContainer = document.createElement('div');
+    tagsContainer.className = 'history-item-objects';
+    
+    // 添加唯一标签（避免重复）
+    const uniqueLabels = new Set();
+    item.detectedObjects.forEach(obj => {
+        uniqueLabels.add(obj.label);
+    });
+    
+    // 最多显示5个标签
+    let tagCount = 0;
+    uniqueLabels.forEach(label => {
+        if (tagCount < 5) {
+            const tag = document.createElement('span');
+            tag.className = 'history-item-tag';
+            tag.textContent = label;
+            tagsContainer.appendChild(tag);
+            tagCount++;
+        }
+    });
+    
+    // 如果有更多标签，显示+N
+    if (uniqueLabels.size > 5) {
+        const moreTag = document.createElement('span');
+        moreTag.className = 'history-item-tag';
+        moreTag.textContent = `+${uniqueLabels.size - 5}`;
+        tagsContainer.appendChild(moreTag);
+    }
+    
+    // 创建操作按钮
+    const actions = document.createElement('div');
+    actions.className = 'history-actions';
+    
+    const viewBtn = document.createElement('button');
+    viewBtn.className = 'history-action-btn view';
+    viewBtn.textContent = '查看详情';
+    viewBtn.addEventListener('click', () => viewHistoryItem(item.id));
+    
+    const shareBtn = document.createElement('button');
+    shareBtn.className = 'history-action-btn share';
+    shareBtn.textContent = '分享';
+    shareBtn.addEventListener('click', () => shareHistoryItem(item.id));
+    
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'history-action-btn delete';
+    deleteBtn.textContent = '删除';
+    deleteBtn.addEventListener('click', () => deleteHistoryItem(item.id));
+    
+    actions.appendChild(viewBtn);
+    actions.appendChild(shareBtn);
+    actions.appendChild(deleteBtn);
+    
+    // 组装元素
+    el.appendChild(header);
+    el.appendChild(image);
+    el.appendChild(info);
+    el.appendChild(tagsContainer);
+    el.appendChild(actions);
+    
+    return el;
+}
+
+// 格式化时间戳
+function formatTimestamp(timestamp) {
+    const date = new Date(timestamp);
+    
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
+// 查看历史记录项
+function viewHistoryItem(id) {
+    const historyItems = getHistoryItems();
+    const item = historyItems.find(item => item.id === id);
+    
+    if (!item) return;
+    
+    // 创建弹窗内容
+    const detailDialog = document.createElement('div');
+    detailDialog.className = 'save-dialog active';
+    
+    const content = document.createElement('div');
+    content.className = 'save-dialog-content';
+    content.style.maxWidth = '700px';
+    
+    const title = document.createElement('h3');
+    title.textContent = item.name;
+    
+    const image = document.createElement('img');
+    image.className = 'save-preview';
+    image.style.height = '300px';
+    image.src = item.imageData;
+    
+    const objectsTitle = document.createElement('h4');
+    objectsTitle.textContent = '识别结果';
+    objectsTitle.style.color = 'var(--text-light)';
+    objectsTitle.style.marginTop = '1rem';
+    
+    const objectsList = document.createElement('div');
+    objectsList.style.maxHeight = '200px';
+    objectsList.style.overflowY = 'auto';
+    objectsList.style.background = 'rgba(15, 23, 42, 0.5)';
+    objectsList.style.padding = '0.8rem';
+    objectsList.style.borderRadius = '6px';
+    
+    // 添加对象列表
+    item.detectedObjects.forEach(obj => {
+        const objItem = document.createElement('div');
+        objItem.style.display = 'flex';
+        objItem.style.justifyContent = 'space-between';
+        objItem.style.padding = '0.5rem 0';
+        objItem.style.borderBottom = '1px solid rgba(255, 255, 255, 0.1)';
+        
+        const label = document.createElement('div');
+        label.textContent = obj.label;
+        
+        const score = document.createElement('div');
+        score.textContent = obj.score;
+        
+        objItem.appendChild(label);
+        objItem.appendChild(score);
+        objectsList.appendChild(objItem);
+    });
+    
+    const timestamp = document.createElement('div');
+    timestamp.style.marginTop = '1rem';
+    timestamp.style.color = 'rgba(255, 255, 255, 0.6)';
+    timestamp.style.fontSize = '0.9rem';
+    timestamp.textContent = `保存时间: ${formatTimestamp(item.timestamp)}`;
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'save-dialog-btn cancel';
+    closeBtn.textContent = '关闭';
+    closeBtn.style.marginTop = '1.5rem';
+    
+    // 点击关闭
+    closeBtn.addEventListener('click', () => {
+        document.body.removeChild(detailDialog);
+    });
+    
+    // 点击背景关闭
+    detailDialog.addEventListener('click', (e) => {
+        if (e.target === detailDialog) {
+            document.body.removeChild(detailDialog);
+        }
+    });
+    
+    // 组装内容
+    content.appendChild(title);
+    content.appendChild(image);
+    content.appendChild(objectsTitle);
+    content.appendChild(objectsList);
+    content.appendChild(timestamp);
+    content.appendChild(closeBtn);
+    
+    detailDialog.appendChild(content);
+    document.body.appendChild(detailDialog);
+}
+
+// 分享历史记录项
+function shareHistoryItem(id) {
+    const historyItems = getHistoryItems();
+    const item = historyItems.find(item => item.id === id);
+    
+    if (!item) return;
+    
+    // 检查是否支持Web Share API
+    if (navigator.share) {
+        try {
+            // 转换图像为Blob
+            fetch(item.imageData)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], `${item.name}.jpg`, { type: 'image/jpeg' });
+                    
+                    // 分享文本和图像
+                    navigator.share({
+                        title: '恒泰视觉AI识别结果',
+                        text: `我用恒泰视觉AI识别系统识别了${item.objectCount}个物体: ${item.detectedObjects.map(o => o.label).join(', ')}`,
+                        files: [file]
+                    }).then(() => {
+                        console.log('分享成功');
+                    }).catch(err => {
+                        console.error('分享失败:', err);
+                        showFallbackShare(item);
+                    });
+                });
+        } catch (err) {
+            console.error('无法分享:', err);
+            showFallbackShare(item);
+        }
+    } else {
+        // 不支持Web Share API，使用备用方法
+        showFallbackShare(item);
+    }
+}
+
+// 备用分享方法
+function showFallbackShare(item) {
+    // 创建一个临时下载链接
+    const a = document.createElement('a');
+    a.href = item.imageData;
+    a.download = `${item.name}.jpg`;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    
+    // 触发下载
+    a.click();
+    
+    // 清理
+    setTimeout(() => {
+        document.body.removeChild(a);
+        
+        // 显示提示
+        showNotification('图像已下载，您可以手动分享它', 'info', 3000);
+    }, 100);
+}
+
+// 删除历史记录项
+function deleteHistoryItem(id) {
+    // 获取历史记录
+    let historyItems = getHistoryItems();
+    
+    // 找到要删除的项的索引
+    const index = historyItems.findIndex(item => item.id === id);
+    
+    if (index !== -1) {
+        // 从数组中移除
+        historyItems.splice(index, 1);
+        
+        // 保存回本地存储
+        localStorage.setItem('hengtaiVisionHistory', JSON.stringify(historyItems));
+        
+        // 更新显示
+        updateHistoryPanel();
+        
+        // 显示通知
+        showNotification('已删除', 'info');
+    }
+}
+
+// 清除所有历史记录
+function clearAllHistory() {
+    // 清空本地存储
+    localStorage.removeItem('hengtaiVisionHistory');
+    
+    // 更新显示
+    updateHistoryPanel();
+    
+    // 显示通知
+    showNotification('已清空所有历史记录', 'info');
+}
+
+// 处理点击历史面板外部关闭
+function handleOutsideHistoryClick(e) {
+    if (historyPanel.classList.contains('active') && 
+        !historyPanel.contains(e.target) && 
+        e.target !== historyBtn) {
+        historyPanel.classList.remove('active');
+        document.removeEventListener('click', handleOutsideHistoryClick);
+    }
+}
+
+// 显示通知
+function showNotification(message, type = 'info', duration = 2000) {
+    // 创建通知元素
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+    
+    // 添加样式
+    notification.style.position = 'fixed';
+    notification.style.bottom = '20px';
+    notification.style.left = '50%';
+    notification.style.transform = 'translateX(-50%)';
+    notification.style.padding = '12px 20px';
+    notification.style.borderRadius = '8px';
+    notification.style.color = 'white';
+    notification.style.zIndex = '1200';
+    notification.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+    notification.style.transition = 'all 0.3s ease';
+    
+    // 根据类型设置颜色
+    switch (type) {
+        case 'success':
+            notification.style.backgroundColor = 'rgba(16, 185, 129, 0.9)';
+            break;
+        case 'error':
+            notification.style.backgroundColor = 'rgba(239, 68, 68, 0.9)';
+            break;
+        case 'warning':
+            notification.style.backgroundColor = 'rgba(245, 158, 11, 0.9)';
+            break;
+        default:
+            notification.style.backgroundColor = 'rgba(59, 130, 246, 0.9)';
+    }
+    
+    // 添加到文档
+    document.body.appendChild(notification);
+    
+    // 淡入
+    setTimeout(() => {
+        notification.style.opacity = '1';
+    }, 10);
+    
+    // 到时间后淡出并删除
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(-50%) translateY(20px)';
+        
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, duration);
+}
+
+// 为历史记录按钮添加事件监听
+if (historyBtn) {
+    historyBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        showHistoryPanel();
+    });
+}
+
+// 为历史面板关闭按钮添加事件监听
+if (historyCloseBtn) {
+    historyCloseBtn.addEventListener('click', function() {
+        historyPanel.classList.remove('active');
+        document.removeEventListener('click', handleOutsideHistoryClick);
+    });
+}
+
+// 为清空历史记录按钮添加事件监听
+if (historyClearBtn) {
+    historyClearBtn.addEventListener('click', function() {
+        if (confirm('确定要清空所有历史记录吗？此操作不可撤销。')) {
+            clearAllHistory();
+        }
+    });
+}
+
+// 为保存对话框按钮添加事件监听
+if (cancelSaveBtn) {
+    cancelSaveBtn.addEventListener('click', function() {
+        saveDialog.classList.remove('active');
+    });
+}
+
+if (confirmSaveBtn) {
+    confirmSaveBtn.addEventListener('click', function() {
+        saveResult();
+    });
+}
+
+// 点击保存对话框背景关闭
+if (saveDialog) {
+    saveDialog.addEventListener('click', function(e) {
+        if (e.target === saveDialog) {
+            saveDialog.classList.remove('active');
+        }
+    });
+}
+
+// ESC键关闭对话框
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        if (saveDialog.classList.contains('active')) {
+            saveDialog.classList.remove('active');
+        }
+        if (historyPanel.classList.contains('active')) {
+            historyPanel.classList.remove('active');
+            document.removeEventListener('click', handleOutsideHistoryClick);
+        }
+    }
+}); 

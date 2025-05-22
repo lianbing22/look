@@ -3,7 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>恒泰视觉 AI 识别系统</title>
+    <title>恒泰视觉 AI 识别系统 - 实时物体识别</title>
+    <meta name="description" content="恒泰视觉AI识别系统是一款基于TensorFlow.js的实时物体识别应用，支持80多种常见物体的检测，无需安装即可在浏览器中使用。">
+    <meta name="keywords" content="AI识别,物体检测,TensorFlow.js,计算机视觉,人工智能,机器学习,实时识别">
+    <meta name="author" content="恒泰科技">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://yourwebsite.com/">
+    <meta property="og:title" content="恒泰视觉 AI 识别系统">
+    <meta property="og:description" content="在浏览器中实时识别摄像头中的80多种物体，无需安装，简单易用。">
+    <meta property="og:image" content="https://yourwebsite.com/preview.jpg">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://yourwebsite.com/">
+    <meta property="twitter:title" content="恒泰视觉 AI 识别系统">
+    <meta property="twitter:description" content="在浏览器中实时识别摄像头中的80多种物体，无需安装，简单易用。">
+    <meta property="twitter:image" content="https://yourwebsite.com/preview.jpg">
+    
+    <!-- Favicon -->
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- 禁止自动电话号码识别和链接 -->
+    <meta name="format-detection" content="telephone=no">
+    
+    <!-- iOS Web App Mode -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="恒泰视觉">
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#0a1429">
+    
     <link rel="stylesheet" href="style.css">
     <!-- TensorFlow.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
@@ -16,6 +52,7 @@
         <nav>
             <a href="#" class="active">首页</a>
             <a href="admin/index.html">管理</a>
+            <a href="#" id="helpBtn">帮助</a>
         </nav>
     </header>
 
@@ -35,18 +72,118 @@
             <div class="controls">
                 <button id="startBtn">开始识别</button>
                 <button id="stopBtn" disabled>停止识别</button>
+                <button id="saveBtn" disabled>保存结果</button>
             </div>
             <div class="results">
-                <h2>识别结果</h2>
+                <h2>识别结果 <a href="#" id="historyBtn" class="history-link" title="查看历史记录"><i class="history-icon">📋</i></a></h2>
                 <div id="predictions"></div>
             </div>
         </div>
     </main>
+    
+    <!-- 帮助引导覆盖层 -->
+    <div id="helpOverlay" class="help-overlay">
+        <div class="help-content">
+            <h2>使用指南</h2>
+            <button id="closeHelpBtn" class="close-btn">&times;</button>
+            
+            <div class="help-steps">
+                <div class="help-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>开始使用</h3>
+                        <p>点击"开始识别"按钮启动摄像头并进行实时物体识别。首次使用时，浏览器会请求摄像头权限，请点击"允许"。</p>
+                    </div>
+                </div>
+                
+                <div class="help-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>识别物体</h3>
+                        <p>将摄像头对准您想要识别的物体。系统会自动检测画面中的物体，并在右侧显示识别结果。</p>
+                    </div>
+                </div>
+                
+                <div class="help-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>调整设置</h3>
+                        <p>点击顶部导航栏中的"管理"按钮，可以调整识别阈值、最大识别数量等参数，根据您的需求进行自定义。</p>
+                    </div>
+                </div>
+                
+                <div class="help-step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>结束识别</h3>
+                        <p>识别完成后，点击"停止识别"按钮关闭摄像头并结束识别过程。</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="help-tips">
+                <h3>小贴士</h3>
+                <ul>
+                    <li>确保环境光线充足，以提高识别准确率</li>
+                    <li>尽量保持物体在画面中心位置</li>
+                    <li>每次识别最多可同时检测10个物体（可在管理设置中调整）</li>
+                    <li>系统可识别80种常见物体，包括人、动物、交通工具、家具、电子设备等</li>
+                </ul>
+            </div>
+            
+            <button id="startTutorialBtn" class="tutorial-btn">查看详细教程</button>
+        </div>
+    </div>
 
     <footer>
-        <p>© 2025 恒泰视觉 AI 识别系统</p>
+        <p>&copy; 2025 恒泰视觉 AI 识别系统 | <a href="https://github.com/yourusername/hengtai-vision" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
 
     <script src="script.js"></script>
+    
+    <!-- 离线工作支持 -->
+    <script>
+        // 注册Service Worker（如果浏览器支持）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker 注册成功:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker 注册失败:', error);
+                    });
+            });
+        }
+    </script>
+    
+    <!-- 历史记录面板 -->
+    <div id="historyPanel" class="history-panel">
+        <div class="history-header">
+            <h3>识别历史记录</h3>
+            <button id="historyCloseBtn" class="history-close">&times;</button>
+        </div>
+        <div id="historyContent" class="history-content">
+            <!-- 历史记录项将通过JavaScript动态生成 -->
+            <div class="history-empty">暂无保存的识别记录</div>
+        </div>
+        <button id="historyClearBtn" class="history-clear">清空所有历史记录</button>
+    </div>
+    
+    <!-- 保存对话框 -->
+    <div id="saveDialog" class="save-dialog">
+        <div class="save-dialog-content">
+            <h3>保存识别结果</h3>
+            <img id="savePreview" class="save-preview" src="" alt="预览图">
+            <div class="save-form-group">
+                <label for="saveName">名称</label>
+                <input type="text" id="saveName" placeholder="为此识别结果命名">
+            </div>
+            <div class="save-dialog-actions">
+                <button id="cancelSaveBtn" class="save-dialog-btn cancel">取消</button>
+                <button id="confirmSaveBtn" class="save-dialog-btn save">保存</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html> 

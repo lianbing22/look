@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /admin/index.html
+
+Sitemap: https://yourwebsite.com/sitemap.xml 

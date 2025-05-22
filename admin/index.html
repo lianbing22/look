@@ -23,12 +23,21 @@
                     <label for="detectionThreshold">识别阈值</label>
                     <input type="range" id="detectionThreshold" name="detectionThreshold" min="0.1" max="0.9" step="0.05" value="0.5">
                     <span id="thresholdValue">0.5</span>
+                    <div class="range-limits">
+                        <span class="min-value">0.1</span>
+                        <span class="max-value">0.9</span>
+                    </div>
                     <p class="help-text">设置物体识别的最小置信度阈值。较高的值会减少误识别，但可能错过一些物体。</p>
                 </div>
 
                 <div class="form-group">
                     <label for="maxDetections">最大识别数量</label>
                     <input type="number" id="maxDetections" name="maxDetections" min="1" max="20" value="10">
+                    <div class="form-error">请输入1到20之间的整数</div>
+                    <div class="range-limits">
+                        <span class="min-value">最小: 1</span>
+                        <span class="max-value">最大: 20</span>
+                    </div>
                     <p class="help-text">每帧画面中最多识别的物体数量。</p>
                 </div>
 
@@ -41,6 +50,11 @@
                 <div class="form-group">
                     <label for="updateInterval">更新间隔(毫秒)</label>
                     <input type="number" id="updateInterval" name="updateInterval" min="50" max="1000" step="50" value="100">
+                    <div class="form-error">请输入50到1000之间，且为50的倍数</div>
+                    <div class="range-limits">
+                        <span class="min-value">最小: 50ms</span>
+                        <span class="max-value">最大: 1000ms</span>
+                    </div>
                     <p class="help-text">物体检测的更新频率。较低的值会更新更频繁，但可能影响性能。</p>
                 </div>
 

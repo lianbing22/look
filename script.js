@@ -353,130 +353,143 @@ function applySettings(settings) {
 
 // 开始检测 - 更新为使用优化的视频约束
 async function startDetection() {
-    if (isModelLoading) {
-        loadingIndicator.textContent = '模型正在加载，请稍候...';
-        loadingIndicator.style.display = 'block';
-        loadingIndicator.style.opacity = '1';
-        return;
-    }
+    if (isDetecting) return;
     
-    // 禁用开始按钮，启用停止按钮
+    console.log('开始识别流程...');
+    
+    // 更新UI状态
     startBtn.disabled = true;
-    stopBtn.disabled = false;
-    
-    // 显示加载指示器
-    loadingIndicator.textContent = '正在启动摄像头...';
-    loadingIndicator.style.display = 'block';
-    loadingIndicator.style.opacity = '1';
+    startBtn.textContent = '正在准备...';
+    predictionsEl.innerHTML = '';
     
     try {
-        console.log('尝试使用优化的视频约束获取摄像头访问权限');
-        // 获取优化的视频约束
-        const videoConstraints = getOptimalVideoConstraints();
-        console.log('视频约束:', videoConstraints);
+        // 确保模型已加载
+        if (!model) {
+            showNotification('正在加载AI模型，请稍候...', 'info', 3000);
+            await loadModel();
+        }
         
-        // 获取摄像头权限
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: videoConstraints,
-            audio: false
-        });
+        // 准备视频约束条件
+        const constraints = getOptimalVideoConstraints();
+        console.log('使用视频约束:', constraints);
         
-        // 设置视频源
-        video.srcObject = stream;
+        // 特殊处理iOS设备
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
         
-        // 调整画布大小
-        video.onloadedmetadata = () => {
-            resizeCanvas();
-            // 隐藏相机占位符
-            cameraPlaceholder.style.display = 'none';
-            
-            console.log(`视频分辨率: ${video.videoWidth}x${video.videoHeight}`);
-            loadingIndicator.style.opacity = '0';
-            setTimeout(() => loadingIndicator.style.display = 'none', 300);
-        };
-        
-        // 开始检测循环
-        isDetecting = true;
-        startDetectionLoop();
-        
-        // 启用保存按钮
-        saveBtn.disabled = false;
-        
-    } catch (error) {
-        console.error('摄像头访问错误:', error);
-        
-        // 尝试降级到基本视频模式
         try {
-            console.log('尝试降级到基本视频模式(不带约束)');
-            loadingIndicator.textContent = '重新尝试访问摄像头...';
-            
+            // 首先尝试使用指定的约束
             stream = await navigator.mediaDevices.getUserMedia({
-                video: true, // 使用默认设置
+                video: constraints,
                 audio: false
             });
+        } catch (initialError) {
+            console.warn('使用优化约束获取摄像头失败，尝试备用方法', initialError);
             
-            // 设置视频源
-            video.srcObject = stream;
-            
-            // 调整画布大小
-            video.onloadedmetadata = () => {
-                resizeCanvas();
-                // 隐藏相机占位符
-                cameraPlaceholder.style.display = 'none';
-                loadingIndicator.style.opacity = '0';
-                setTimeout(() => loadingIndicator.style.display = 'none', 300);
-            };
-            
-            // 开始检测循环
-            isDetecting = true;
-            startDetectionLoop();
-            saveBtn.disabled = false;
-            return;
-        } catch (fallbackError) {
-            console.error('降级摄像头访问也失败:', fallbackError);
-            
-            // 如果是iOS设备，尝试使用facingMode: "user"（前置摄像头）
-            if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+            // 如果是iOS设备且初次请求失败，尝试使用简化约束
+            if (isIOS) {
                 try {
-                    console.log('尝试使用iOS前置摄像头');
-                    loadingIndicator.textContent = '尝试使用前置摄像头...';
-                    
+                    // iOS备用方案：使用最简单的约束
                     stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "user" },
+                        video: true,
                         audio: false
                     });
-                    
-                    // 设置视频源
-                    video.srcObject = stream;
-                    
-                    // 调整画布大小
-                    video.onloadedmetadata = () => {
-                        resizeCanvas();
-                        // 隐藏相机占位符
-                        cameraPlaceholder.style.display = 'none';
-                        loadingIndicator.style.opacity = '0';
-                        setTimeout(() => loadingIndicator.style.display = 'none', 300);
-                    };
-                    
-                    // 开始检测循环
-                    isDetecting = true;
-                    startDetectionLoop();
-                    saveBtn.disabled = false;
-                    return;
+                    console.log('使用简化约束成功获取iOS摄像头');
                 } catch (iosError) {
-                    console.error('iOS前置摄像头访问也失败:', iosError);
+                    throw new Error(`iOS设备摄像头访问失败: ${iosError.message}`);
+                }
+            } else {
+                // 非iOS设备备用方案：尝试只指定后置摄像头
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'environment' } },
+                        audio: false
+                    });
+                    console.log('使用基本后置摄像头约束成功');
+                } catch (fallbackError) {
+                    // 最后尝试最简单的约束
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                        audio: false
+                    });
+                    console.log('使用最简单约束成功获取摄像头');
                 }
             }
         }
         
-        loadingIndicator.textContent = '摄像头访问失败: ' + (error.message || '无法访问摄像头，请确保已授予权限');
-        loadingIndicator.style.display = 'block';
-        loadingIndicator.style.opacity = '1';
+        // 连接视频流
+        video.srcObject = stream;
         
-        // 重置按钮状态
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
+        // 处理iOS Safari的特殊情况
+        if (isIOS) {
+            // iOS Safari需要等待视频元数据加载
+            if (video.readyState === 0) {
+                await new Promise(resolve => {
+                    video.onloadedmetadata = () => {
+                        resolve();
+                    };
+                });
+            }
+            
+            // iOS Safari需要播放才能实际开始视频流
+            try {
+                await video.play();
+                console.log('iOS视频播放已开始');
+            } catch (playError) {
+                console.error('iOS视频播放失败:', playError);
+                throw new Error(`无法播放视频: ${playError.message}`);
+            }
+        }
+        
+        // 重设画布尺寸
+        resizeCanvas();
+        
+        // 隐藏占位符
+        cameraPlaceholder.style.display = 'none';
+        
+        // 显示对焦框
+        cameraFocus.style.display = 'block';
+        
+        // 启动检测循环
+        isDetecting = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
         saveBtn.disabled = true;
+        startBtn.textContent = '识别中...';
+        
+        // 使用默认设置或存储的设置
+        let settings = loadSettings();
+        startDetectionLoop(settings);
+        
+        console.log('识别已开始');
+        showNotification('已开始物体识别', 'success');
+        
+    } catch (error) {
+        console.error('启动识别失败:', error);
+        
+        startBtn.disabled = false;
+        startBtn.textContent = '开始识别';
+        
+        // 提供更具体的错误信息
+        let errorMessage = '无法访问摄像头，请确保已授予权限。';
+        
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            errorMessage = '摄像头访问被拒绝。请在浏览器设置中允许摄像头访问，然后刷新页面。';
+        } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+            errorMessage = '未检测到摄像头设备。请确保您的设备有可用的摄像头。';
+        } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+            errorMessage = '摄像头可能被其他应用程序占用。请关闭其他使用摄像头的应用，然后刷新页面。';
+        } else if (error.name === 'OverconstrainedError') {
+            errorMessage = '您的摄像头不支持请求的分辨率或功能。正在尝试兼容模式...';
+            // 这里可以添加自动重试逻辑，使用更简单的约束
+            setTimeout(() => {
+                startDetection();
+            }, 1000);
+            return;
+        } else if (error.message && error.message.includes('getUserMedia is not implemented')) {
+            errorMessage = '您的浏览器不支持摄像头访问。请使用最新版本的Chrome、Firefox或Safari浏览器。';
+        }
+        
+        showNotification(errorMessage, 'error', 5000);
     }
 }
 

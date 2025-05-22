@@ -1,5 +1,5 @@
 // 缓存名称和版本
-const CACHE_NAME = 'hengtai-vision-cache-v1';
+const CACHE_NAME = 'hengtai-vision-cache-v2';
 
 // 需要缓存的资源列表
 const CACHE_URLS = [
@@ -24,7 +24,15 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('缓存资源中...');
-        return cache.addAll(CACHE_URLS);
+        // 尝试缓存所有资源，但忽略失败的请求
+        return Promise.allSettled(
+          CACHE_URLS.map(url => 
+            cache.add(url).catch(error => {
+              console.warn(`无法缓存资源: ${url}`, error);
+              return Promise.resolve(); // 继续处理其他资源
+            })
+          )
+        );
       })
       .then(() => {
         console.log('资源已缓存');
@@ -68,7 +76,7 @@ self.addEventListener('fetch', event => {
   // 对于API请求和摄像头流，使用网络优先策略
   if (event.request.url.includes('getUserMedia') || 
       event.request.url.includes('camera') || 
-      event.request.headers.get('Accept').includes('image/')) {
+      event.request.headers.get('Accept')?.includes('image/')) {
     event.respondWith(
       fetch(event.request).catch(error => {
         console.error('网络请求失败:', error);
@@ -106,7 +114,7 @@ self.addEventListener('fetch', event => {
             console.error('网络请求和缓存都失败了:', error);
             
             // 如果是HTML请求，返回离线页面
-            if (event.request.headers.get('Accept').includes('text/html')) {
+            if (event.request.headers.get('Accept')?.includes('text/html')) {
               return caches.match('./index.html');
             }
             
@@ -141,13 +149,13 @@ async function syncSettings() {
 
 // 推送通知
 self.addEventListener('push', event => {
-  const data = event.data.json();
+  const data = event.data ? event.data.json() : {};
   
   const title = data.title || '恒泰视觉 AI 识别系统';
   const options = {
     body: data.body || '有新的通知',
     icon: './icons/icon-192x192.png',
-    badge: './icons/badge-96x96.png',
+    badge: './icons/icon-96x96.png',
     vibrate: [100, 50, 100],
     data: {
       url: data.url || './'

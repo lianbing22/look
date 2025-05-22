@@ -63,11 +63,47 @@ function updateFormValues() {
 // 保存设置
 function saveSettings() {
     try {
+        // 验证设置值的合法性
+        validateSettings();
+        
+        // 保存到localStorage
         localStorage.setItem('hengtaiVisionSettings', JSON.stringify(currentSettings));
-        showNotification('设置已保存');
+        
+        // 显示详细的成功通知
+        const message = `
+            <div style="text-align: left;">
+                <div><strong>设置已保存:</strong></div>
+                <div>• 识别阈值: ${currentSettings.detectionThreshold}</div>
+                <div>• 最大识别数量: ${currentSettings.maxDetections}</div>
+                <div>• 显示边界框: ${currentSettings.showBoundingBox ? '是' : '否'}</div>
+                <div>• 更新间隔: ${currentSettings.updateInterval}ms</div>
+            </div>
+        `;
+        
+        showNotification(message, 'success', 3000);
+        
+        console.log('设置已保存:', currentSettings);
     } catch (e) {
         console.error('保存设置失败:', e);
-        alert('保存设置失败: ' + e.message);
+        showNotification(`设置保存失败: ${e.message}`, 'error', 5000);
+    }
+}
+
+// 验证设置值
+function validateSettings() {
+    // 验证检测阈值
+    if (currentSettings.detectionThreshold < 0.1 || currentSettings.detectionThreshold > 0.9) {
+        throw new Error('识别阈值必须在0.1到0.9之间');
+    }
+    
+    // 验证最大检测数量
+    if (currentSettings.maxDetections < 1 || currentSettings.maxDetections > 20) {
+        throw new Error('最大识别数量必须在1到20之间');
+    }
+    
+    // 验证更新间隔
+    if (currentSettings.updateInterval < 50 || currentSettings.updateInterval > 1000) {
+        throw new Error('更新间隔必须在50到1000毫秒之间');
     }
 }
 
@@ -162,32 +198,63 @@ async function checkSystemStatus() {
 }
 
 // 显示通知
-function showNotification(message) {
+function showNotification(message, type = 'info', duration = 3000) {
     // 创建通知元素
     const notification = document.createElement('div');
-    notification.className = 'notification';
-    notification.textContent = message;
+    notification.className = `notification ${type}`;
+    notification.innerHTML = message;
     
     // 添加样式
     notification.style.position = 'fixed';
     notification.style.top = '20px';
     notification.style.left = '50%';
     notification.style.transform = 'translateX(-50%)';
-    notification.style.padding = '10px 20px';
-    notification.style.backgroundColor = 'rgba(52, 152, 219, 0.9)';
+    notification.style.padding = '15px 20px';
     notification.style.color = 'white';
-    notification.style.borderRadius = '4px';
+    notification.style.borderRadius = '8px';
     notification.style.zIndex = '1000';
+    notification.style.maxWidth = '80%';
+    notification.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+    
+    // 根据类型设置不同背景色
+    switch(type) {
+        case 'success':
+            notification.style.backgroundColor = 'rgba(16, 185, 129, 0.95)'; // 成功绿色
+            break;
+        case 'error':
+            notification.style.backgroundColor = 'rgba(239, 68, 68, 0.95)'; // 错误红色
+            break;
+        case 'warning':
+            notification.style.backgroundColor = 'rgba(245, 158, 11, 0.95)'; // 警告黄色
+            break;
+        default:
+            notification.style.backgroundColor = 'rgba(59, 130, 246, 0.95)'; // 信息蓝色
+    }
     
     // 添加到文档
     document.body.appendChild(notification);
     
-    // 2秒后删除
+    // 添加淡入效果
+    notification.style.opacity = '0';
+    notification.style.transition = 'opacity 0.3s ease-in-out';
+    
+    // 强制重绘以应用初始透明度
+    notification.getBoundingClientRect();
+    
+    // 淡入显示
+    notification.style.opacity = '1';
+    
+    // 指定时间后删除
     setTimeout(() => {
         notification.style.opacity = '0';
-        notification.style.transition = 'opacity 0.5s';
-        setTimeout(() => document.body.removeChild(notification), 500);
-    }, 2000);
+        notification.style.transform = 'translateX(-50%) translateY(-20px)';
+        notification.style.transition = 'opacity 0.5s ease-in-out, transform 0.5s ease-in-out';
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 500);
+    }, duration);
 }
 
 // 页面加载完成后初始化

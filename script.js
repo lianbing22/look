@@ -279,6 +279,10 @@ async function startDetection() {
         // 清除之前的结果
         predictionsEl.innerHTML = '';
         
+        // 重新加载最新设置
+        loadSettings();
+        console.log('已加载设置:', settings);
+        
         // 显示加载提示
         if (!model) {
             showLoadingIndicator('正在加载模型...');

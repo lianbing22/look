@@ -46,23 +46,27 @@ nav a.active, nav a:hover {
 .camera-container {
     position: relative;
     width: 100%;
-    max-width: 640px;
+    max-width: 100%;
     margin: 0 auto;
     border: 1px solid #ddd;
     border-radius: 8px;
     overflow: hidden;
     background-color: #000;
+    aspect-ratio: 4/3;
 }
 
 video, canvas {
     width: 100%;
+    height: 100%;
     display: block;
-}
-
-canvas {
+    object-fit: cover;
     position: absolute;
     top: 0;
     left: 0;
+}
+
+canvas {
+    z-index: 10;
 }
 
 .controls {
@@ -135,5 +139,38 @@ footer {
     
     .results {
         flex: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    header {
+        padding: 0.5rem;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    .container {
+        padding: 0.5rem;
+        gap: 0.5rem;
+    }
+    
+    .camera-container {
+        aspect-ratio: 3/4;
+        margin-bottom: 0.5rem;
+    }
+    
+    .controls {
+        padding: 0.5rem;
+    }
+    
+    button {
+        font-size: 14px;
+    }
+    
+    .results {
+        max-height: 200px;
+        overflow-y: auto;
     }
 } 

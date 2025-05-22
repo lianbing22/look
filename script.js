@@ -167,8 +167,8 @@ async function startCamera() {
         const constraints = {
             video: {
                 facingMode: 'environment', // 使用后置摄像头
-                width: { ideal: 640 },
-                height: { ideal: 480 }
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
             }
         };
         
@@ -180,6 +180,16 @@ async function startCamera() {
                 // 设置画布尺寸与视频相同
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
+                
+                // 确保视频元素填满容器
+                video.style.width = '100%';
+                video.style.height = 'auto';
+                canvas.style.width = '100%';
+                canvas.style.height = 'auto';
+                
+                // 强制触发视频播放
+                video.play().catch(e => console.error('视频播放失败:', e));
+                
                 resolve();
             };
         });
@@ -194,6 +204,19 @@ async function startDetection() {
     if (isRunning) return;
     
     try {
+        startBtn.disabled = true;
+        startBtn.textContent = '正在启动...';
+        
+        // 清除之前的结果
+        predictionsEl.innerHTML = '';
+        
+        // 确保模型已加载
+        if (!model) {
+            console.log('重新加载模型...');
+            model = await cocoSsd.load();
+        }
+        
+        // 启动摄像头
         await startCamera();
         
         isRunning = true;
@@ -201,10 +224,13 @@ async function startDetection() {
         stopBtn.disabled = false;
         
         // 开始检测循环
+        console.log('开始物体检测');
         detectObjects();
     } catch (error) {
+        console.error('启动失败:', error);
         alert(error.message);
-        console.error(error);
+        startBtn.disabled = false;
+        startBtn.textContent = '开始识别';
     }
 }
 
@@ -253,8 +279,26 @@ async function detectObjects() {
             await startCamera();
         }
         
+        // 检查视频是否已准备好
+        if (video.readyState !== 4) {
+            console.log('视频尚未准备好，等待中...');
+            setTimeout(() => {
+                animationId = requestAnimationFrame(detectObjects);
+            }, 500);
+            return;
+        }
+        
+        // 确保画布尺寸正确
+        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            console.log(`调整画布尺寸: ${canvas.width}x${canvas.height}`);
+        }
+        
+        console.log('执行检测...');
         // 执行检测
         const predictions = await model.detect(video, settings.maxDetections);
+        console.log('检测结果:', predictions);
         
         // 清除画布和预测结果
         ctx.clearRect(0, 0, canvas.width, canvas.height);

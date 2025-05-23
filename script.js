@@ -272,7 +272,7 @@ function getOptimalVideoConstraints() {
     };
 }
 
-// 添加一个函数来检查和修复可能的多余视频元素问题
+// 修改视频处理函数，确保不会出现双视频
 function fixDuplicateVideoElements() {
     // 获取所有视频元素
     const allVideos = document.querySelectorAll('video');
@@ -295,6 +295,90 @@ function fixDuplicateVideoElements() {
         
         console.log('多余视频元素清理完成');
     }
+    
+    // 确保视频容器中只有一个视频元素和一个画布
+    const container = document.querySelector('.camera-container');
+    if (container) {
+        // 检查是否有多余的元素
+        const children = Array.from(container.children);
+        const videoElements = children.filter(el => el.tagName === 'VIDEO');
+        const canvasElements = children.filter(el => el.tagName === 'CANVAS');
+        
+        // 如果有多个视频元素，只保留第一个
+        if (videoElements.length > 1) {
+            for (let i = 1; i < videoElements.length; i++) {
+                container.removeChild(videoElements[i]);
+                console.log('移除了容器中多余的视频元素');
+            }
+        }
+        
+        // 如果有多个画布元素，只保留第一个
+        if (canvasElements.length > 1) {
+            for (let i = 1; i < canvasElements.length; i++) {
+                container.removeChild(canvasElements[i]);
+                console.log('移除了容器中多余的画布元素');
+            }
+        }
+    }
+}
+
+// 添加iOS设备特定的视频处理
+function setupIOSVideoHandling() {
+    // 检查是否为iOS设备
+    if (isIOSDevice()) {
+        console.log('检测到iOS设备，应用特殊视频处理');
+        
+        // 获取视频和画布元素
+        const videoEl = document.getElementById('video');
+        const canvasEl = document.getElementById('canvas');
+        
+        if (!videoEl || !canvasEl) return;
+        
+        // 为iOS设备设置特定样式
+        videoEl.style.objectFit = 'contain';
+        videoEl.style.width = '100%';
+        videoEl.style.height = '100%';
+        
+        // 监听视频播放事件，确保正确渲染
+        videoEl.addEventListener('playing', function() {
+            console.log('iOS设备视频开始播放');
+            
+            // 确保视频比例正确
+            setTimeout(() => {
+                // 重新调整画布大小
+                resizeCanvas();
+                
+                // 强制重绘一次
+                if (ctx && videoEl.videoWidth > 0) {
+                    const containerWidth = canvasEl.width / devicePixelRatio;
+                    const containerHeight = canvasEl.height / devicePixelRatio;
+                    
+                    // 计算视频与画布的比例关系
+                    const videoRatio = videoEl.videoWidth / videoEl.videoHeight;
+                    const canvasRatio = containerWidth / containerHeight;
+                    
+                    // 计算绘制尺寸
+                    let drawWidth = containerWidth;
+                    let drawHeight = containerHeight;
+                    let offsetX = 0;
+                    let offsetY = 0;
+                    
+                    if (videoRatio > canvasRatio) {
+                        drawHeight = containerWidth / videoRatio;
+                        offsetY = (containerHeight - drawHeight) / 2;
+                    } else {
+                        drawWidth = containerHeight * videoRatio;
+                        offsetX = (containerWidth - drawWidth) / 2;
+                    }
+                    
+                    // 清除画布并绘制视频
+                    ctx.clearRect(0, 0, containerWidth, containerHeight);
+                    ctx.drawImage(videoEl, 0, 0, videoEl.videoWidth, videoEl.videoHeight, 
+                                 offsetX, offsetY, drawWidth, drawHeight);
+                }
+            }, 500);
+        });
+    }
 }
 
 // 初始化
@@ -309,6 +393,9 @@ async function init() {
     
     // 修复可能存在的重复视频元素问题
     fixDuplicateVideoElements();
+    
+    // 设置iOS设备特定的视频处理
+    setupIOSVideoHandling();
     
     loadingIndicator.textContent = '正在加载模型...';
     loadingIndicator.style.display = 'block';
@@ -563,7 +650,7 @@ function applySettings(settings) {
     }
 }
 
-// 开始检测 - 优化移动设备体验
+// 修改startDetection函数，确保视频元素正确初始化
 async function startDetection() {
     if (isDetecting) return;
     
@@ -595,11 +682,20 @@ async function startDetection() {
                 console.log('停止现有视频轨道:', track.kind);
             });
             stream = null;
-            video.srcObject = null;
-            // 确保视频元素被完全重置
-            video.load();
         }
-
+        
+        // 彻底清理视频元素
+        if (video) {
+            video.srcObject = null;
+            video.src = '';
+            video.load();
+            
+            // 确保没有事件监听器残留
+            video.onloadedmetadata = null;
+            video.onloadeddata = null;
+            video.oncanplay = null;
+        }
+        
         // 调整视频约束条件
         let constraints = getOptimalVideoConstraints();
         
@@ -649,6 +745,12 @@ async function startDetection() {
             throw new Error(`无法播放视频: ${playError.message}`);
         }
         
+        // 显示对焦框
+        const cameraFocus = document.querySelector('.camera-focus');
+        if (cameraFocus) {
+            cameraFocus.style.display = 'block';
+        }
+        
         // 隐藏加载指示器
         loadingIndicator.style.opacity = '0';
         setTimeout(() => {
@@ -661,9 +763,6 @@ async function startDetection() {
         
         // 隐藏占位符
         cameraPlaceholder.style.display = 'none';
-        
-        // 显示对焦框
-        cameraFocus.style.display = 'block';
         
         // 启动检测循环
         isDetecting = true;
@@ -849,7 +948,7 @@ function startDetectionLoop(overrideSettings) {
     animationFrameId = requestAnimationFrame(detectFrame);
 }
 
-// 绘制视频帧到画布
+// 修改drawVideoFrame函数，防止重复绘制
 function drawVideoFrame() {
     // 绘制视频帧，确保不会重复绘制
     if (!isDetecting || !video || !ctx) return;
@@ -865,44 +964,33 @@ function drawVideoFrame() {
     const containerWidth = canvas.width / devicePixelRatio;
     const containerHeight = canvas.height / devicePixelRatio;
     
-    // 清除画布
+    // 清除整个画布
     ctx.clearRect(0, 0, containerWidth, containerHeight);
     
     // 计算视频与画布的比例关系
     const videoRatio = video.videoWidth / video.videoHeight;
     const canvasRatio = containerWidth / containerHeight;
     
-    // 对于移动设备，使用全屏模式
-    const isMobile = window.innerWidth <= 768;
-    let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+    // 计算绘制尺寸，确保视频填满画布
+    let drawWidth = containerWidth;
+    let drawHeight = containerHeight;
+    let offsetX = 0;
+    let offsetY = 0;
     
-    if (isMobile) {
-        // 移动设备上填满全屏
-        drawWidth = containerWidth;
-        drawHeight = containerHeight;
+    // 保持视频比例，居中显示
+    if (videoRatio > canvasRatio) {
+        // 视频更宽，上下有黑边
+        drawHeight = containerWidth / videoRatio;
+        offsetY = (containerHeight - drawHeight) / 2;
     } else {
-        // 桌面设备上保持比例
-        if (videoRatio > canvasRatio) {
-            // 视频更宽，上下有黑边
-            drawWidth = containerWidth;
-            drawHeight = drawWidth / videoRatio;
-            offsetY = (containerHeight - drawHeight) / 2;
-        } else {
-            // 视频更高，左右有黑边
-            drawHeight = containerHeight;
-            drawWidth = drawHeight * videoRatio;
-            offsetX = (containerWidth - drawWidth) / 2;
-        }
+        // 视频更高，左右有黑边
+        drawWidth = containerHeight * videoRatio;
+        offsetX = (containerWidth - drawWidth) / 2;
     }
     
-    // 在画布上绘制视频帧 - 只绘制一次，不要分屏
+    // 绘制视频帧 - 简单直接的方式，避免复杂处理
     try {
-        // 简化绘制代码，避免复杂操作可能导致的重复绘制
-        ctx.drawImage(
-            video,
-            0, 0, video.videoWidth, video.videoHeight,
-            offsetX, offsetY, drawWidth, drawHeight
-        );
+        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, offsetX, offsetY, drawWidth, drawHeight);
     } catch (error) {
         console.error('绘制视频帧失败:', error);
     }

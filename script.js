@@ -272,6 +272,31 @@ function getOptimalVideoConstraints() {
     };
 }
 
+// 添加一个函数来检查和修复可能的多余视频元素问题
+function fixDuplicateVideoElements() {
+    // 获取所有视频元素
+    const allVideos = document.querySelectorAll('video');
+    
+    // 如果有多个视频元素，保留第一个，删除其他
+    if (allVideos.length > 1) {
+        console.warn(`检测到 ${allVideos.length} 个视频元素，正在修复...`);
+        
+        // 保留第一个视频元素的引用
+        video = allVideos[0];
+        
+        // 从第二个开始删除多余的视频元素
+        for (let i = 1; i < allVideos.length; i++) {
+            const parent = allVideos[i].parentNode;
+            if (parent) {
+                parent.removeChild(allVideos[i]);
+                console.log(`已移除多余的视频元素 #${i}`);
+            }
+        }
+        
+        console.log('多余视频元素清理完成');
+    }
+}
+
 // 初始化
 async function init() {
     // 将加载指示器添加到camera-container中，使其居中显示
@@ -281,6 +306,9 @@ async function init() {
     } else {
         document.body.appendChild(loadingIndicator);
     }
+    
+    // 修复可能存在的重复视频元素问题
+    fixDuplicateVideoElements();
     
     loadingIndicator.textContent = '正在加载模型...';
     loadingIndicator.style.display = 'block';
@@ -418,6 +446,9 @@ function applySettings(settings) {
 async function startDetection() {
     if (isDetecting) return;
     
+    // 修复可能存在的重复视频元素问题
+    fixDuplicateVideoElements();
+    
     console.log('开始识别流程...');
     
     // 更新UI状态
@@ -444,62 +475,23 @@ async function startDetection() {
             });
             stream = null;
             video.srcObject = null;
+            // 确保视频元素被完全重置
+            video.load();
         }
-        
-        // 检测设备方向和类型
-        const isLandscape = window.innerWidth > window.innerHeight;
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        
+
         // 调整视频约束条件
-        let constraints = {};
-        
-        if (isMobile) {
-            if (isLandscape) {
-                // 横屏手机
-                constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        width: { ideal: 1280, max: 1920 },
-                        height: { ideal: 720, max: 1080 }
-                    },
-                    audio: false
-                };
-            } else {
-                // 竖屏手机
-                constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        width: { ideal: 720, max: 1080 },
-                        height: { ideal: 1280, max: 1920 }
-                    },
-                    audio: false
-                };
-            }
-        } else {
-            // 桌面设备
-            constraints = {
-                video: {
-                    width: { ideal: 1280, max: 1920 },
-                    height: { ideal: 720, max: 1080 }
-                },
-                audio: false
-            };
-        }
+        let constraints = getOptimalVideoConstraints();
         
         console.log('使用视频约束:', constraints);
         loadingIndicator.textContent = '请求摄像头权限...';
         
         try {
             // 请求摄像头权限
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: constraints,
+                audio: false
+            });
             console.log('成功获取视频流，轨道数量:', stream.getVideoTracks().length);
-            
-            // 检查视频轨道
-            const videoTrack = stream.getVideoTracks()[0];
-            if (videoTrack) {
-                const settings = videoTrack.getSettings();
-                console.log('视频轨道设置:', settings);
-            }
         } catch (initialError) {
             console.warn('使用优化约束获取摄像头失败，尝试备用方法', initialError);
             loadingIndicator.textContent = '摄像头访问失败，尝试备用方法...';
@@ -518,26 +510,22 @@ async function startDetection() {
         video.srcObject = stream;
         
         // 等待视频准备好
-        if (video.readyState === 0) {
-            await new Promise(resolve => {
-                video.onloadedmetadata = () => {
-                    console.log('视频元数据已加载，尺寸:', video.videoWidth, 'x', video.videoHeight);
-                    resolve();
-                };
-                // 设置超时，防止无限等待
-                setTimeout(resolve, 2000);
-            });
-        }
+        await new Promise(resolve => {
+            video.onloadedmetadata = () => {
+                console.log('视频元数据已加载，尺寸:', video.videoWidth, 'x', video.videoHeight);
+                resolve();
+            };
+            // 设置超时，防止无限等待
+            setTimeout(resolve, 2000);
+        });
         
         // 确保视频已开始播放
-        if (video.paused) {
-            try {
-                await video.play();
-                console.log('视频播放已开始');
-            } catch (playError) {
-                console.error('视频播放失败:', playError);
-                throw new Error(`无法播放视频: ${playError.message}`);
-            }
+        try {
+            await video.play();
+            console.log('视频播放已开始');
+        } catch (playError) {
+            console.error('视频播放失败:', playError);
+            throw new Error(`无法播放视频: ${playError.message}`);
         }
         
         // 隐藏加载指示器
@@ -743,18 +731,13 @@ function startDetectionLoop(overrideSettings) {
 // 绘制视频帧到画布
 function drawVideoFrame() {
     // 绘制视频帧，确保不会重复绘制
-    if (!isDetecting) return;
+    if (!isDetecting || !video || !ctx) return;
     
-    if (!video || !video.videoWidth || !video.videoHeight) {
+    if (!video.videoWidth || !video.videoHeight) {
         return;
     }
     
     if (video.paused || video.ended) {
-        return;
-    }
-    
-    if (!ctx) {
-        console.error('未找到画布上下文');
         return;
     }
     
@@ -793,19 +776,12 @@ function drawVideoFrame() {
     
     // 在画布上绘制视频帧 - 只绘制一次，不要分屏
     try {
-        // 绘制视频帧，填充适当区域
+        // 简化绘制代码，避免复杂操作可能导致的重复绘制
         ctx.drawImage(
             video,
             0, 0, video.videoWidth, video.videoHeight,
             offsetX, offsetY, drawWidth, drawHeight
         );
-        
-        // 如果有黑边，绘制边框以美观
-        if (offsetX > 0 || offsetY > 0) {
-            ctx.strokeStyle = 'rgba(0, 200, 255, 0.3)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(offsetX, offsetY, drawWidth, drawHeight);
-        }
     } catch (error) {
         console.error('绘制视频帧失败:', error);
     }
@@ -2010,4 +1986,33 @@ function handleURLParameters() {
             }
         }, 1000);
     }
-} 
+}
+
+// 添加页面卸载事件监听
+window.addEventListener('beforeunload', function() {
+    // 停止所有视频流
+    if (stream) {
+        stream.getTracks().forEach(track => {
+            track.stop();
+            console.log('页面卸载: 停止视频轨道');
+        });
+    }
+    
+    // 清除所有视频元素的源
+    const allVideos = document.querySelectorAll('video');
+    allVideos.forEach(videoEl => {
+        videoEl.srcObject = null;
+        videoEl.src = '';
+        videoEl.load();
+    });
+    
+    // 取消所有进行中的检测
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+    }
+    
+    console.log('页面卸载: 所有资源已清理');
+});
+
+// 页面加载完成后初始化
+window.addEventListener('load', init); 

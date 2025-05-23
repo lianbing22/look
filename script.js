@@ -689,31 +689,29 @@ function startDetectionLoop(overrideSettings) {
     pendingDetection = false;
     
     // 使用requestAnimationFrame进行高效渲染
-    function detectFrame() {
+    function detectFrame(timestamp) {
         if (!isDetecting || !pageVisible) return;
         
-        // 绘制视频帧到画布 (每帧都更新)
+        // 每帧绘制视频
         drawVideoFrame();
         
-        // 检测物体 (根据时间间隔执行)
-        const now = performance.now();
-        const elapsed = now - lastDetectionTime;
-        
-        // 只有当间隔时间达到设置值且没有待处理的检测时才执行新的检测
-        if (elapsed >= updateInterval && !pendingDetection) {
+        // 根据时间间隔执行检测
+        if (!pendingDetection && (timestamp - lastDetectionTime >= updateInterval || lastDetectionTime === 0)) {
             pendingDetection = true;
-            lastDetectionTime = now;
+            lastDetectionTime = timestamp;
             
-            // 执行物体检测 (这里不会重绘视频帧，只会添加预测框)
-            detectObjects().then(() => {
-                pendingDetection = false;
-            }).catch(error => {
-                pendingDetection = false;
-                console.error('检测过程出错:', error);
-            });
+            // 异步执行物体检测
+            detectObjects()
+                .then(() => {
+                    pendingDetection = false;
+                })
+                .catch(error => {
+                    pendingDetection = false;
+                    console.error('检测过程出错:', error);
+                });
         }
         
-        // 请求下一帧
+        // 如果仍在检测状态，则请求下一帧
         if (isDetecting) {
             animationFrameId = requestAnimationFrame(detectFrame);
         }
@@ -725,9 +723,7 @@ function startDetectionLoop(overrideSettings) {
 
 // 绘制视频帧到画布
 function drawVideoFrame() {
-    // 只绘制视频帧，不绘制预测框
-    // 预测框将由drawPredictions函数单独处理
-    
+    // 绘制视频帧，确保不会重复绘制
     if (!isDetecting) return;
     
     if (!video || !video.videoWidth || !video.videoHeight) {
@@ -751,6 +747,7 @@ function drawVideoFrame() {
     
     // 在画布上绘制视频帧
     try {
+        // 简单绘制整个视频帧，不添加任何分屏效果
         ctx.drawImage(
             video,
             0, 0, video.videoWidth, video.videoHeight,
@@ -841,11 +838,15 @@ function drawPredictions(predictions) {
     
     // 重新绘制视频帧
     if (video && video.readyState >= 2 && !video.paused && !video.ended) {
-        ctx.drawImage(
-            video,
-            0, 0, video.videoWidth, video.videoHeight,
-            0, 0, canvasWidth, canvasHeight
-        );
+        try {
+            ctx.drawImage(
+                video,
+                0, 0, video.videoWidth, video.videoHeight,
+                0, 0, canvasWidth, canvasHeight
+            );
+        } catch (error) {
+            console.error('绘制视频帧失败:', error);
+        }
     }
     
     // 没有预测结果时直接返回
@@ -876,9 +877,6 @@ function drawPredictions(predictions) {
     const scaleX = drawWidth / video.videoWidth;
     const scaleY = drawHeight / video.videoHeight;
     
-    console.log(`绘制预测框 - 视频尺寸: ${video.videoWidth}x${video.videoHeight}, 画布尺寸: ${canvasWidth}x${canvasHeight}`);
-    console.log(`缩放比例: scaleX=${scaleX}, scaleY=${scaleY}, 偏移: offsetX=${offsetX}, offsetY=${offsetY}`);
-    
     // 绘制每个预测结果
     predictions.forEach(prediction => {
         const [x, y, width, height] = prediction.bbox;
@@ -905,8 +903,6 @@ function drawPredictions(predictions) {
         if (label === 'person') {
             color = colorMap.person;
         }
-        
-        console.log(`绘制: ${label}, 原始坐标:(${x},${y}), 缩放后:(${scaledX},${scaledY}), 尺寸:${scaledWidth}x${scaledHeight}`);
         
         // 设置边界框样式
         ctx.strokeStyle = color;

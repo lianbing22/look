@@ -86,6 +86,7 @@ nav a.active, nav a:hover {
     gap: 1rem;
 }
 
+/* 视频容器样式 - 最简单的样式结构 */
 .camera-container {
     position: relative;
     width: 100%;
@@ -96,10 +97,10 @@ nav a.active, nav a:hover {
     overflow: hidden;
     background-color: #000;
     aspect-ratio: 16/9;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 112, 243, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-/* 视频元素 - 最简单的样式 */
+/* 视频元素样式 - 使用最简单的定位和尺寸设置 */
 #video {
     position: absolute;
     top: 0;
@@ -108,9 +109,10 @@ nav a.active, nav a:hover {
     height: 100%;
     object-fit: cover;
     background-color: #000;
+    z-index: 1;
 }
 
-/* 画布元素 - 确保完全覆盖视频 */
+/* 画布元素样式 - 简单的定位和尺寸 */
 #canvas {
     position: absolute;
     top: 0;
@@ -118,6 +120,7 @@ nav a.active, nav a:hover {
     width: 100%;
     height: 100%;
     background: transparent;
+    z-index: 2;
 }
 
 /* 占位符样式 */
@@ -128,14 +131,14 @@ nav a.active, nav a:hover {
     width: 100%;
     height: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     background-color: rgba(0, 0, 0, 0.7);
     color: white;
     z-index: 5;
     text-align: center;
-    padding: 20px;
-    backdrop-filter: blur(5px);
+    gap: 15px;
 }
 
 .camera-placeholder div {
@@ -331,12 +334,15 @@ footer {
     }
     
     .camera-container {
-        max-height: 50vh;
-        width: 100%;
-        margin: 0 auto 0.3rem;
+        max-height: 55vh !important;
+        width: 100% !important;
+        margin: 0 auto 0.3rem !important;
         border-width: 1px !important;
         border-style: solid !important;
         border-color: rgba(255, 255, 255, 0.1) !important;
+        overflow: hidden !important;
+        position: relative !important;
+        display: block !important;
     }
     
     .controls {
@@ -393,8 +399,23 @@ footer {
         font-size: 0.75rem;
     }
     
-    video {
-        object-fit: contain !important;
+    video, #canvas {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        border: none !important;
+        outline: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        background-clip: content-box !important;
+        object-fit: cover !important;
+        transform: translateZ(0) !important;
+        -webkit-transform: translateZ(0) !important;
+        will-change: transform !important;
     }
 }
 
@@ -418,18 +439,15 @@ footer {
     100% { transform: rotate(360deg); }
 }
 
+/* 加载指示器 */
 .loading-spinner {
-    display: inline-block;
-    width: 25px;
-    height: 25px;
+    width: 40px;
+    height: 40px;
     border: 3px solid rgba(255,255,255,.1);
     border-radius: 50%;
     border-top-color: var(--primary-color);
     border-left-color: var(--secondary-color);
     animation: spin 1s ease-in-out infinite;
-    margin-right: 10px;
-    vertical-align: middle;
-    box-shadow: 0 0 10px rgba(0, 112, 243, 0.3);
 }
 
 /* 帮助覆盖层样式 */

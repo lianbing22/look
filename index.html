@@ -94,15 +94,12 @@
         <div class="container">
             <!-- 完全重构视频容器，使用最简单的结构 -->
             <div class="camera-container" id="cameraContainer">
-                <!-- 只保留必要的元素，简化结构 -->
                 <video id="video" autoplay playsinline muted></video>
                 <canvas id="canvas"></canvas>
-                <!-- 占位符和加载指示器 -->
+                <!-- 只保留必要的加载指示器 -->
                 <div id="cameraPlaceholder" class="camera-placeholder">
-                    <div>
-                        <div class="loading-spinner"></div>
-                        <span>点击下方按钮开始</span>
-                    </div>
+                    <div class="loading-spinner"></div>
+                    <div>点击下方按钮开始</div>
                 </div>
             </div>
             <div class="controls">
@@ -285,46 +282,118 @@
     })();
     </script>
 
-    <!-- iOS视频修复脚本 -->
+    <!-- iOS视频修复脚本 - 增强版 -->
     <script>
     (function() {
         // 检测iOS设备
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         
         if (isIOS) {
-            // 专门针对iOS设备的修复
+            // 移除可能存在的视觉元素
             document.addEventListener('DOMContentLoaded', function() {
+                console.log('执行iOS增强修复...');
+                
                 const video = document.getElementById('video');
                 const canvas = document.getElementById('canvas');
                 const cameraContainer = document.getElementById('cameraContainer');
                 
-                // 移除任何多余的视频元素
-                cameraContainer.querySelectorAll('video').forEach((v, index) => {
-                    if (index > 0 || v.id !== 'video') {
+                // 移除所有可能干扰视频显示的非必要元素
+                Array.from(cameraContainer.children).forEach(child => {
+                    if (child.id !== 'video' && child.id !== 'canvas' && child.id !== 'cameraPlaceholder') {
+                        child.parentNode.removeChild(child);
+                    }
+                });
+                
+                // 确保没有多余的视频元素
+                document.querySelectorAll('video').forEach((v, index) => {
+                    if (v.id !== 'video') {
                         v.parentNode.removeChild(v);
                     }
                 });
                 
-                // 确保视频和画布使用绝对定位并完全覆盖
-                video.style.position = 'absolute';
-                video.style.top = '0';
-                video.style.left = '0';
-                video.style.width = '100%';
-                video.style.height = '100%';
-                video.style.objectFit = 'cover';
-                video.style.zIndex = '1';
+                // 确保视频样式正确
+                video.style.cssText = `
+                    position: absolute !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                    object-fit: cover !important;
+                    background-color: #000 !important;
+                    z-index: 1 !important;
+                    transform: translateZ(0);
+                    -webkit-transform: translateZ(0);
+                `;
                 
-                canvas.style.position = 'absolute';
-                canvas.style.top = '0';
-                canvas.style.left = '0';
-                canvas.style.width = '100%';
-                canvas.style.height = '100%';
-                canvas.style.zIndex = '2';
+                // 确保画布样式正确
+                canvas.style.cssText = `
+                    position: absolute !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    width: 100% !important;
+                    height: 100% !important;
+                    z-index: 2 !important;
+                    background: transparent !important;
+                    transform: translateZ(0);
+                    -webkit-transform: translateZ(0);
+                `;
                 
-                // 禁用iOS中可能导致问题的功能
+                // 添加视频加载和播放事件处理
+                video.addEventListener('loadedmetadata', function() {
+                    console.log('视频元数据已加载 - iOS修复');
+                });
+                
+                video.addEventListener('playing', function() {
+                    console.log('视频开始播放 - iOS修复');
+                });
+                
+                // 设置容器样式
+                cameraContainer.style.cssText += `
+                    transform: translateZ(0);
+                    -webkit-transform: translateZ(0);
+                    backface-visibility: hidden;
+                    -webkit-backface-visibility: hidden;
+                `;
+                
+                // 确保视频属性设置正确
                 video.setAttribute('playsinline', '');
+                video.setAttribute('webkit-playsinline', '');
                 video.setAttribute('muted', '');
                 video.setAttribute('autoplay', '');
+            });
+            
+            // 在视频开始播放后再次应用样式
+            document.addEventListener('startDetection', function() {
+                setTimeout(function() {
+                    const video = document.getElementById('video');
+                    const canvas = document.getElementById('canvas');
+                    
+                    // 再次应用关键样式，以防止iOS Safari中的问题
+                    video.style.cssText = `
+                        position: absolute !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        width: 100% !important;
+                        height: 100% !important;
+                        object-fit: cover !important;
+                        background-color: #000 !important;
+                        z-index: 1 !important;
+                        transform: translateZ(0);
+                        -webkit-transform: translateZ(0);
+                    `;
+                    
+                    canvas.style.cssText = `
+                        position: absolute !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        width: 100% !important;
+                        height: 100% !important;
+                        z-index: 2 !important;
+                        background: transparent !important;
+                        transform: translateZ(0);
+                        -webkit-transform: translateZ(0);
+                    `;
+                }, 1000);
             });
         }
     })();

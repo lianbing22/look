@@ -108,6 +108,72 @@ function setupEventListeners() {
     historyClearBtn.addEventListener('click', clearHistory);
 }
 
+// 强制更新视频容器样式
+function forceUpdateVideoStyles() {
+    if (!isStreaming) return;
+    
+    console.log('强制更新视频样式...');
+    
+    // 获取元素
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const cameraContainer = document.getElementById('cameraContainer');
+    
+    // 确保容器样式正确
+    cameraContainer.style.cssText += `
+        position: relative !important;
+        overflow: hidden !important;
+        background-color: #000 !important;
+        z-index: 1 !important;
+    `;
+    
+    // 确保视频样式正确
+    video.style.cssText = `
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        background-color: #000 !important;
+        z-index: 1 !important;
+        transform: translateZ(0) !important;
+        -webkit-transform: translateZ(0) !important;
+        border: none !important;
+        outline: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    `;
+    
+    // 确保画布样式正确
+    canvas.style.cssText = `
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 2 !important;
+        background: transparent !important;
+        transform: translateZ(0) !important;
+        -webkit-transform: translateZ(0) !important;
+        border: none !important;
+        outline: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    `;
+    
+    // 移除可能干扰的元素
+    Array.from(cameraContainer.children).forEach(child => {
+        if (child.id !== 'video' && child.id !== 'canvas' && child.id !== 'cameraPlaceholder') {
+            child.style.display = 'none';
+        }
+    });
+    
+    // 重设画布大小
+    canvas.width = video.videoWidth || cameraContainer.offsetWidth;
+    canvas.height = video.videoHeight || cameraContainer.offsetHeight;
+}
+
 // 开始检测
 async function startDetection() {
     if (isStreaming) return;
@@ -155,10 +221,19 @@ async function startDetection() {
             
             // 开始检测循环
             detectionInterval = setInterval(detectObjects, settings.detectionInterval);
+            
+            // 触发开始检测事件 - 用于iOS视频修复
+            document.dispatchEvent(new Event('startDetection'));
+            
+            // 2秒后强制更新视频样式，确保正确显示
+            setTimeout(forceUpdateVideoStyles, 2000);
         };
         
         // 开始播放视频
         await video.play();
+        
+        // 3秒后再次强制更新样式 - 双重保险
+        setTimeout(forceUpdateVideoStyles, 3000);
         
     } catch (error) {
         console.error('无法访问摄像头:', error);
@@ -202,6 +277,9 @@ async function detectObjects() {
     if (!isStreaming || !model) return;
     
     try {
+        // 首先完全清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
         // 执行预测
         const predictions = await model.detect(video);
         
@@ -213,41 +291,46 @@ async function detectObjects() {
         // 更新当前预测结果
         currentPredictions = filteredPredictions;
         
-        // 清空画布
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // 绘制检测结果
-        drawDetections(filteredPredictions);
+        // 绘制检测结果 - 只有当有检测结果时才绘制
+        if (filteredPredictions.length > 0) {
+            drawDetections(filteredPredictions);
+        }
         
         // 更新预测结果显示
         updatePredictionsList(filteredPredictions);
         
     } catch (error) {
         console.error('对象检测失败:', error);
+        // 再次清空画布以防止错误后的残余显示
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 }
 
 // 绘制检测结果
 function drawDetections(predictions) {
+    if (!predictions || predictions.length === 0) return;
+    
     // 绘制检测框和标签
     predictions.forEach(prediction => {
         const [x, y, width, height] = prediction.bbox;
         
         if (settings.showBoxes) {
-            // 绘制边界框
-            ctx.strokeStyle = settings.boxColor;
+            // 绘制边界框 - 使用纯色无渐变
+            ctx.strokeStyle = '#00c8ff';
             ctx.lineWidth = 2;
-            ctx.strokeRect(x, y, width, height);
+            ctx.beginPath();
+            ctx.rect(x, y, width, height);
+            ctx.stroke();
         }
         
         if (settings.showLabels) {
             // 准备标签文本
-            const label = `${getChineseName(prediction.class)}`;
+            const label = getChineseName(prediction.class);
             const score = settings.showScores ? ` ${Math.round(prediction.score * 100)}%` : '';
             const text = label + score;
             
             // 设置文本样式
-            ctx.fillStyle = settings.backgroundColor;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             ctx.font = '14px Arial, sans-serif';
             
             // 测量文本宽度
@@ -258,7 +341,7 @@ function drawDetections(predictions) {
             ctx.fillRect(x, y - textHeight, textWidth + 10, textHeight);
             
             // 绘制标签文本
-            ctx.fillStyle = settings.textColor;
+            ctx.fillStyle = '#ffffff';
             ctx.fillText(text, x + 5, y - 5);
         }
     });

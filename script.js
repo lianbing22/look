@@ -4,27 +4,30 @@ function $(id) {
 }
 
 // DOM元素 - 使用安全的方式获取元素
-const video = $('video');
-const canvas = $('canvas');
-const ctx = canvas && canvas.getContext('2d');
-const startBtn = $('startBtn');
-const stopBtn = $('stopBtn');
-const saveBtn = $('saveBtn');
-const cameraPlaceholder = $('cameraPlaceholder');
-const predictions = $('predictions');
-const helpBtn = $('helpBtn');
-const helpOverlay = $('helpOverlay');
-const closeHelpBtn = $('closeHelpBtn');
-const historyBtn = $('historyBtn');
-const historyPanel = $('historyPanel');
-const historyCloseBtn = $('historyCloseBtn');
-const saveDialog = $('saveDialog');
-const saveName = $('saveName');
-const savePreview = $('savePreview');
-const cancelSaveBtn = $('cancelSaveBtn');
-const confirmSaveBtn = $('confirmSaveBtn');
-const historyClearBtn = $('historyClearBtn');
-const historyContent = $('historyContent');
+let video;
+let canvas;
+let ctx;
+let startBtn;
+let stopBtn;
+let saveBtn;
+let cameraPlaceholder;
+let predictions;
+let helpBtn;
+let helpOverlay;
+let closeHelpBtn;
+let historyBtn;
+let historyPanel;
+let historyCloseBtn;
+let saveDialog;
+let saveName;
+let savePreview;
+let cancelSaveBtn;
+let confirmSaveBtn;
+let historyClearBtn;
+let historyContent;
+let uploadImageTriggerBtn;
+let uploadImageInput;
+let uploadedImageDisplay;
 
 // 全局变量
 let model = null;
@@ -48,13 +51,97 @@ const settings = {
     backgroundColor: 'rgba(0, 0, 0, 0.5)'
 };
 
+// Function to load settings from localStorage
+function loadSettingsFromStorage() {
+    try {
+        const storedSettingsString = localStorage.getItem('hengtaiVisionSettings');
+        if (storedSettingsString) {
+            const loadedSettings = JSON.parse(storedSettingsString);
+
+            if (loadedSettings) {
+                if (loadedSettings.hasOwnProperty('detectionThreshold')) {
+                    settings.confidenceThreshold = parseFloat(loadedSettings.detectionThreshold);
+                }
+                if (loadedSettings.hasOwnProperty('maxDetections')) {
+                    settings.maxDetections = parseInt(loadedSettings.maxDetections, 10);
+                }
+                if (loadedSettings.hasOwnProperty('updateInterval')) {
+                    settings.detectionInterval = parseInt(loadedSettings.updateInterval, 10);
+                     // Also update the detectionInterval for the setInterval if it's already running
+                    if (detectionInterval) {
+                        clearInterval(detectionInterval);
+                        if (isStreaming) { // Only restart if streaming was active
+                           detectionInterval = setInterval(detectObjects, settings.detectionInterval);
+                        }
+                    }
+                }
+                // if (loadedSettings.hasOwnProperty('showBoundingBox')) { // Removed old logic
+                //     settings.showBoxes = Boolean(loadedSettings.showBoundingBox);
+                //     settings.showLabels = Boolean(loadedSettings.showBoundingBox); 
+                // }
+
+                // Added new logic for individual settings
+                if (loadedSettings.hasOwnProperty('showBoxes')) {
+                    settings.showBoxes = Boolean(loadedSettings.showBoxes);
+                }
+                if (loadedSettings.hasOwnProperty('showLabels')) {
+                    settings.showLabels = Boolean(loadedSettings.showLabels);
+                }
+                if (loadedSettings.hasOwnProperty('showScores')) {
+                    settings.showScores = Boolean(loadedSettings.showScores);
+                }
+                console.log('Admin settings loaded successfully into script.js:', settings);
+            }
+        } else {
+            console.log('No admin settings found in localStorage. Using default settings.');
+        }
+    } catch (error) {
+        console.error('Error loading settings from localStorage:', error);
+        // Optional: localStorage.removeItem('hengtaiVisionSettings'); // Clear faulty settings
+    }
+}
+
 // 初始化应用
 async function init() {
+    // Assign DOM elements here
+    video = $('video');
+    canvas = $('canvas');
+    if (canvas) {
+        ctx = canvas.getContext('2d');
+    }
+    startBtn = $('startBtn');
+    stopBtn = $('stopBtn');
+    saveBtn = $('saveBtn');
+    cameraPlaceholder = $('cameraPlaceholder');
+    predictions = $('predictions');
+    helpBtn = $('helpBtn');
+    helpOverlay = $('helpOverlay');
+    closeHelpBtn = $('closeHelpBtn');
+    historyBtn = $('historyBtn');
+    historyPanel = $('historyPanel');
+    historyCloseBtn = $('historyCloseBtn');
+    saveDialog = $('saveDialog');
+    saveName = $('saveName');
+    savePreview = $('savePreview');
+    cancelSaveBtn = $('cancelSaveBtn');
+    confirmSaveBtn = $('confirmSaveBtn');
+    historyClearBtn = $('historyClearBtn');
+    historyContent = $('historyContent');
+    uploadImageTriggerBtn = $('uploadImageTriggerBtn');
+    uploadImageInput = $('uploadImageInput');
+    uploadedImageDisplay = $('uploadedImageDisplay');
+
+    if (uploadImageTriggerBtn) {
+        uploadImageTriggerBtn.disabled = true; // Disable initially
+    }
+
+    loadSettingsFromStorage(); // Load settings from localStorage
+
     console.log('正在初始化应用...');
     
     try {
         // 检查基本元素是否可用
-        if (!video || !canvas || !ctx) {
+        if (!video || !canvas || !ctx) { // ctx is now assigned above, this check remains valid
             throw new Error('视频或画布元素不可用，请刷新页面重试');
         }
         
@@ -72,6 +159,9 @@ async function init() {
         model = await cocoSsd.load();
         
         console.log('模型加载成功!');
+
+        if (startBtn) startBtn.disabled = false; // Enable start button after model loads
+        if (uploadImageTriggerBtn) uploadImageTriggerBtn.disabled = false; // Enable upload button after model loads
         
         // 读取本地存储的历史记录
         loadHistoryFromStorage();
@@ -211,7 +301,94 @@ function setupEventListeners() {
     
     // 清空历史记录按钮
     if (historyClearBtn) historyClearBtn.addEventListener('click', clearHistory);
+
+    // Upload image button
+    if (uploadImageTriggerBtn) {
+        uploadImageTriggerBtn.addEventListener('click', () => {
+            if (uploadImageInput) {
+                uploadImageInput.click();
+            }
+        });
+    }
+
+    // Handle image file selection
+    if (uploadImageInput) {
+        uploadImageInput.addEventListener('change', handleImageUpload);
+    }
 }
+
+// Handle image upload and detection
+async function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file || !model) {
+        if (!model) console.error("Model not loaded yet, cannot process image.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = async () => {
+            // Stop camera if it's running
+            if (isStreaming) {
+                stopDetection(); // This will also reset startBtn text, disable stopBtn, enable startBtn
+            }
+
+            // UI adjustments for image mode
+            if (video) video.style.display = 'none';
+            if (cameraPlaceholder) cameraPlaceholder.style.display = 'none';
+            if (uploadedImageDisplay) { // Though not displayed, good to manage its state
+                uploadedImageDisplay.src = img.src; // Keep a reference if needed later
+                uploadedImageDisplay.style.display = 'none'; // Ensure it's not visible
+            }
+
+            // Set canvas to image dimensions
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+
+            // Draw image on canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            console.log('Detecting objects in uploaded image...');
+            try {
+                const imagePredictions = await model.detect(img); // Use the in-memory image
+                currentPredictions = imagePredictions;
+                drawDetections(imagePredictions);    // Draws on the main canvas
+                updatePredictionsList(imagePredictions);
+
+                if (saveBtn) saveBtn.disabled = false;
+                if (stopBtn) stopBtn.disabled = true; // No "stop" for static image
+                if (startBtn) {
+                    startBtn.textContent = '返回摄像头模式';
+                    startBtn.disabled = false; // Allow switching back to camera
+                }
+                isStreaming = false; // Explicitly set, as stopDetection might be preparing for camera stream
+            } catch (error) {
+                console.error("Error during image detection:", error);
+                alert("图片识别失败，请检查控制台获取更多信息。");
+                // Optionally, revert to camera mode or clear canvas
+                if (startBtn) startBtn.textContent = '开始识别';
+                if (predictions) predictions.innerHTML = '<div class="prediction-item">图片识别失败</div>';
+
+            }
+        };
+        img.onerror = () => {
+            console.error("Error loading image file.");
+            alert("无法加载图片文件。请确保文件格式正确。");
+        };
+        img.src = e.target.result;
+    };
+    reader.onerror = () => {
+        console.error("Error reading file.");
+        alert("读取文件失败。");
+    };
+    reader.readAsDataURL(file);
+
+    // Reset file input to allow uploading the same file again
+    event.target.value = null;
+}
+
 
 // 强制更新视频容器样式
 function forceUpdateVideoStyles() {
@@ -300,7 +477,31 @@ function stopAllMediaStreams() {
 
 // 开始检测
 async function startDetection() {
-    if (isStreaming) return;
+    // Reset from image mode to camera mode if necessary
+    if (uploadedImageDisplay) {
+        uploadedImageDisplay.style.display = 'none';
+        uploadedImageDisplay.src = '';
+    }
+    if (video) {
+        video.style.display = 'block'; // Ensure video element is visible
+    }
+    if (startBtn) {
+        startBtn.textContent = '开始识别';
+    }
+    if (saveBtn) { // Disable save button until new detections are made
+        saveBtn.disabled = true;
+    }
+    // Clear previous non-video detections from canvas
+    if (ctx && canvas && !isStreaming) { // if isStreaming is false, it implies we might be coming from image mode
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+     if (predictions) { // Clear old predictions
+        predictions.innerHTML = '';
+    }
+    currentPredictions = [];
+
+
+    if (isStreaming) return; // Already streaming or trying to start.
     if (!video || !canvas || !ctx) {
         console.error('视频或画布元素不可用');
         alert('视频或画布元素不可用，请刷新页面重试');
@@ -465,8 +666,12 @@ function stopDetection() {
     
     // 更新状态
     isStreaming = false;
-    startBtn.disabled = false;
-    stopBtn.disabled = true;
+    if (startBtn) {
+        startBtn.disabled = false;
+        startBtn.textContent = '开始识别'; // Ensure text is reset
+    }
+    if (stopBtn) stopBtn.disabled = true;
+    if (saveBtn) saveBtn.disabled = true; // Disable save when stopping, unless image mode re-enables
 }
 
 // 检测对象
@@ -762,22 +967,32 @@ function getChineseName(className) {
 
 // 显示保存对话框
 function showSaveDialog() {
-    if (!isStreaming) return;
-    
-    // 生成预览图
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    tempCtx.drawImage(canvas, 0, 0);
-    
-    // 设置预览图
-    savePreview.src = tempCanvas.toDataURL('image/jpeg');
+    // The main canvas should always have the content to be saved (video frame + drawing OR uploaded image + drawing)
+    // No need to check isStreaming if canvas is always the source of truth for save.
+    // Ensure there's something to save.
+    if (!canvas || (currentPredictions.length === 0 && !isStreaming && video.style.display === 'none')) { 
+        // Latter condition: if not streaming (no active camera) AND video element is hidden (image mode) AND no predictions
+        alert('没有可保存的识别结果。');
+        return;
+    }
+    if (!saveBtn || saveBtn.disabled) {
+        alert('当前状态无法保存结果。');
+        return;
+    }
+
+    // 生成预览图 directly from the main canvas
+    // The main canvas (id='canvas') should already reflect the final state (video+detections or image+detections)
+    try {
+        const dataURL = canvas.toDataURL('image/jpeg');
+        if (savePreview) savePreview.src = dataURL;
+    } catch (e) {
+        console.error("Error generating data URL from canvas:", e);
+        alert("生成预览图失败，无法保存。");
+        return;
+    }
     
     // 显示对话框
-    saveDialog.classList.add('active');
+    if (saveDialog) saveDialog.classList.add('active');
 }
 
 // 保存检测结果

@@ -349,7 +349,7 @@ async function loadModel() {
         
         // 更新状态
         isModelLoading = false;
-        loadingIndicator.textContent = 'AI模型加载完成，点击开始识别按钮开始';
+        loadingIndicator.textContent = 'AI模型加载完成，点击按钮开始识别';
         
         // 淡出加载指示器
         setTimeout(() => {
@@ -433,6 +433,16 @@ async function startDetection() {
             await loadModel();
         }
         
+        // 清理之前可能存在的视频流
+        if (stream) {
+            stream.getTracks().forEach(track => {
+                track.stop();
+                console.log('停止现有视频轨道:', track.kind);
+            });
+            stream = null;
+            video.srcObject = null;
+        }
+        
         // 准备视频约束条件
         const constraints = getOptimalVideoConstraints();
         console.log('使用视频约束:', constraints);
@@ -442,10 +452,19 @@ async function startDetection() {
         
         try {
             // 首先尝试使用指定的约束
+            loadingIndicator.textContent = '请求摄像头权限...';
             stream = await navigator.mediaDevices.getUserMedia({
                 video: constraints,
                 audio: false
             });
+            console.log('成功获取视频流，轨道数量:', stream.getVideoTracks().length);
+            
+            // 检查视频轨道
+            const videoTrack = stream.getVideoTracks()[0];
+            if (videoTrack) {
+                const settings = videoTrack.getSettings();
+                console.log('视频轨道设置:', settings);
+            }
         } catch (initialError) {
             console.warn('使用优化约束获取摄像头失败，尝试备用方法', initialError);
             loadingIndicator.textContent = '摄像头访问失败，尝试备用方法...';
@@ -486,23 +505,25 @@ async function startDetection() {
         // 连接视频流
         video.srcObject = stream;
         
-        // 处理iOS Safari的特殊情况
-        if (isIOS) {
-            // iOS Safari需要等待视频元数据加载
-            if (video.readyState === 0) {
-                await new Promise(resolve => {
-                    video.onloadedmetadata = () => {
-                        resolve();
-                    };
-                });
-            }
-            
-            // iOS Safari需要播放才能实际开始视频流
+        // 等待视频准备好
+        if (video.readyState === 0) {
+            await new Promise(resolve => {
+                video.onloadedmetadata = () => {
+                    console.log('视频元数据已加载，尺寸:', video.videoWidth, 'x', video.videoHeight);
+                    resolve();
+                };
+                // 设置超时，防止无限等待
+                setTimeout(resolve, 2000);
+            });
+        }
+        
+        // 确保视频已开始播放
+        if (video.paused) {
             try {
                 await video.play();
-                console.log('iOS视频播放已开始');
+                console.log('视频播放已开始');
             } catch (playError) {
-                console.error('iOS视频播放失败:', playError);
+                console.error('视频播放失败:', playError);
                 throw new Error(`无法播放视频: ${playError.message}`);
             }
         }
@@ -576,44 +597,56 @@ async function startDetection() {
 
 // 优化画布大小调整函数
 function resizeCanvas() {
-    if (video.videoWidth) {
-        // 获取容器尺寸
-        const container = document.querySelector('.camera-container');
-        const containerWidth = container.clientWidth;
-        const containerHeight = container.clientHeight;
-        
-        // 计算视频宽高比
-        const videoRatio = video.videoWidth / video.videoHeight;
-        
-        // 调整画布大小以匹配容器
-        let canvasWidth, canvasHeight;
-        
-        if (containerWidth / containerHeight > videoRatio) {
-            // 容器更宽，以高度为准
-            canvasHeight = containerHeight;
-            canvasWidth = canvasHeight * videoRatio;
-        } else {
-            // 容器更高，以宽度为准
-            canvasWidth = containerWidth;
-            canvasHeight = canvasWidth / videoRatio;
-        }
-        
-        // 设置画布尺寸
-        const capabilities = detectDeviceCapabilities();
-        const scaleFactor = capabilities.isHighDensity ? Math.min(window.devicePixelRatio, 2) : devicePixelRatio;
-        
-        canvas.width = canvasWidth * scaleFactor;
-        canvas.height = canvasHeight * scaleFactor;
-        
-        // 设置画布CSS尺寸
-        canvas.style.width = `${canvasWidth}px`;
-        canvas.style.height = `${canvasHeight}px`;
-        
-        // 调整渲染上下文比例
-        ctx.scale(scaleFactor, scaleFactor);
-        
-        console.log(`画布已调整: ${canvasWidth}x${canvasHeight}, 设备像素比: ${scaleFactor}`);
+    if (!video || !video.videoWidth) {
+        console.log('视频尚未准备好，无法调整画布大小');
+        return;
     }
+    
+    // 获取容器尺寸
+    const container = document.querySelector('.camera-container');
+    if (!container) {
+        console.error('未找到相机容器');
+        return;
+    }
+    
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    console.log(`容器尺寸: ${containerWidth}x${containerHeight}`);
+    
+    // 计算视频宽高比
+    const videoRatio = video.videoWidth / video.videoHeight;
+    console.log(`视频分辨率: ${video.videoWidth}x${video.videoHeight}, 比例: ${videoRatio.toFixed(2)}`);
+    
+    // 调整画布大小以匹配容器
+    let canvasWidth, canvasHeight;
+    
+    if (containerWidth / containerHeight > videoRatio) {
+        // 容器更宽，以高度为准
+        canvasHeight = containerHeight;
+        canvasWidth = canvasHeight * videoRatio;
+    } else {
+        // 容器更高，以宽度为准
+        canvasWidth = containerWidth;
+        canvasHeight = canvasWidth / videoRatio;
+    }
+    
+    // 设置画布尺寸
+    const capabilities = detectDeviceCapabilities();
+    const scaleFactor = capabilities.isHighDensity ? Math.min(window.devicePixelRatio, 2) : devicePixelRatio;
+    
+    // 调整画布大小
+    canvas.width = canvasWidth * scaleFactor;
+    canvas.height = canvasHeight * scaleFactor;
+    
+    // 设置画布CSS尺寸
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${canvasHeight}px`;
+    
+    // 调整渲染上下文比例
+    ctx.scale(scaleFactor, scaleFactor);
+    
+    console.log(`画布已调整: ${canvasWidth}x${canvasHeight}, 设备像素比: ${scaleFactor}, 实际画布尺寸: ${canvas.width}x${canvas.height}`);
 }
 
 // 开始检测循环
@@ -659,18 +692,19 @@ function startDetectionLoop(overrideSettings) {
     function detectFrame() {
         if (!isDetecting || !pageVisible) return;
         
+        // 绘制视频帧到画布 (每帧都更新)
+        drawVideoFrame();
+        
+        // 检测物体 (根据时间间隔执行)
         const now = performance.now();
         const elapsed = now - lastDetectionTime;
-        
-        // 绘制视频帧到画布
-        drawVideoFrame();
         
         // 只有当间隔时间达到设置值且没有待处理的检测时才执行新的检测
         if (elapsed >= updateInterval && !pendingDetection) {
             pendingDetection = true;
             lastDetectionTime = now;
             
-            // 执行物体检测
+            // 执行物体检测 (这里不会重绘视频帧，只会添加预测框)
             detectObjects().then(() => {
                 pendingDetection = false;
             }).catch(error => {
@@ -691,7 +725,9 @@ function startDetectionLoop(overrideSettings) {
 
 // 绘制视频帧到画布
 function drawVideoFrame() {
-    // 只在检测循环调用此函数，避免在drawPredictions中再调用
+    // 只绘制视频帧，不绘制预测框
+    // 预测框将由drawPredictions函数单独处理
+    
     if (!isDetecting) return;
     
     if (!video || !video.videoWidth || !video.videoHeight) {
@@ -766,7 +802,15 @@ async function detectObjects() {
         // 执行检测
         console.log('执行物体检测...');
         const predictions = await model.detect(video);
-        console.log(`检测到 ${predictions.length} 个物体`);
+        
+        if (predictions && predictions.length > 0) {
+            console.log(`检测到 ${predictions.length} 个物体:`);
+            predictions.forEach((pred, idx) => {
+                console.log(`${idx+1}. ${pred.class} (${Math.round(pred.score*100)}%) - 位置: [${pred.bbox.join(', ')}]`);
+            });
+        } else {
+            console.log('未检测到任何物体');
+        }
         
         // 过滤低置信度结果和限制数量
         const filteredPredictions = predictions
@@ -804,19 +848,25 @@ function drawPredictions(predictions) {
         );
     }
     
-    // 获取视频在画布上的实际尺寸
+    // 没有预测结果时直接返回
+    if (!predictions || predictions.length === 0) {
+        return;
+    }
+    
+    // 计算视频和画布实际尺寸比例
     const videoRatio = video.videoWidth / video.videoHeight;
     const canvasRatio = canvasWidth / canvasHeight;
     
+    // 计算视频在画布中的实际显示尺寸和位置
     let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
     
     if (videoRatio > canvasRatio) {
-        // 视频更宽，有水平边界
+        // 视频更宽，两侧有黑边
         drawHeight = canvasHeight;
         drawWidth = drawHeight * videoRatio;
         offsetX = (canvasWidth - drawWidth) / 2;
     } else {
-        // 视频更高，有垂直边界
+        // 视频更高，上下有黑边
         drawWidth = canvasWidth;
         drawHeight = drawWidth / videoRatio;
         offsetY = (canvasHeight - drawHeight) / 2;
@@ -826,11 +876,20 @@ function drawPredictions(predictions) {
     const scaleX = drawWidth / video.videoWidth;
     const scaleY = drawHeight / video.videoHeight;
     
+    console.log(`绘制预测框 - 视频尺寸: ${video.videoWidth}x${video.videoHeight}, 画布尺寸: ${canvasWidth}x${canvasHeight}`);
+    console.log(`缩放比例: scaleX=${scaleX}, scaleY=${scaleY}, 偏移: offsetX=${offsetX}, offsetY=${offsetY}`);
+    
+    // 绘制每个预测结果
     predictions.forEach(prediction => {
-        // 获取预测数据
         const [x, y, width, height] = prediction.bbox;
         const label = prediction.class;
         const score = Math.round(prediction.score * 100);
+        
+        // 计算缩放后的坐标和尺寸（考虑偏移量）
+        const scaledX = x * scaleX + offsetX;
+        const scaledY = y * scaleY + offsetY;
+        const scaledWidth = width * scaleX;
+        const scaledHeight = height * scaleY;
         
         // 确定颜色
         let color = colorMap.default;
@@ -847,15 +906,11 @@ function drawPredictions(predictions) {
             color = colorMap.person;
         }
         
-        // 计算调整后的位置和大小
-        const scaledX = x * scaleX + offsetX;
-        const scaledY = y * scaleY + offsetY;
-        const scaledWidth = width * scaleX;
-        const scaledHeight = height * scaleY;
+        console.log(`绘制: ${label}, 原始坐标:(${x},${y}), 缩放后:(${scaledX},${scaledY}), 尺寸:${scaledWidth}x${scaledHeight}`);
         
         // 设置边界框样式
         ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3; // 加粗线条
         
         // 绘制边界框
         ctx.beginPath();
@@ -865,6 +920,9 @@ function drawPredictions(predictions) {
         // 创建标签背景
         const chineseLabel = labelMap[label] || label;
         const labelText = `${chineseLabel} ${score}%`;
+        
+        // 设置文本样式并测量文本宽度
+        ctx.font = 'bold 14px Arial, PingFang SC, Microsoft YaHei';
         const textMetrics = ctx.measureText(labelText);
         const labelWidth = textMetrics.width + 10;
         const labelHeight = 24;
@@ -875,7 +933,6 @@ function drawPredictions(predictions) {
         
         // 设置文本样式
         ctx.fillStyle = 'white';
-        ctx.font = '14px Arial, PingFang SC, Microsoft YaHei';
         ctx.textBaseline = 'middle';
         
         // 绘制标签文本

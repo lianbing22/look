@@ -72,10 +72,12 @@
 
     <main>
         <div class="container">
-            <div class="camera-container">
+            <!-- 完全重构视频容器，使用最简单的结构 -->
+            <div class="camera-container" id="cameraContainer">
+                <!-- 只保留必要的元素，简化结构 -->
                 <video id="video" autoplay playsinline muted></video>
                 <canvas id="canvas"></canvas>
-                <div class="camera-focus"></div>
+                <!-- 占位符和加载指示器 -->
                 <div id="cameraPlaceholder" class="camera-placeholder">
                     <div>
                         <div class="loading-spinner"></div>

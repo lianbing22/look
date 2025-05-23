@@ -97,66 +97,30 @@ nav a.active, nav a:hover {
     background-color: #000;
     aspect-ratio: 16/9;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 112, 243, 0.3);
-    content: none !important;
 }
 
-.camera-container::before,
-.camera-container::after {
-    content: none !important;
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    position: static !important;
-    pointer-events: none !important;
-}
-
-video {
+/* 视频元素 - 最简单的样式 */
+#video {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100% !important;
-    height: 100% !important;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    z-index: 5;
-    border: none;
-    margin: 0;
-    padding: 0;
     background-color: #000;
-    opacity: 1;
-    transform: none;
-    display: block;
-    max-width: 100%;
-    max-height: 100%;
 }
 
-canvas {
+/* 画布元素 - 确保完全覆盖视频 */
+#canvas {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: 10;
-    border: none;
-    margin: 0;
-    padding: 0;
+    width: 100%;
+    height: 100%;
     background: transparent;
-    max-width: 100%;
-    max-height: 100%;
 }
 
-.camera-container > video:nth-child(n+2) {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    width: 0 !important;
-    height: 0 !important;
-    position: absolute !important;
-    z-index: -1 !important;
-    pointer-events: none !important;
-}
-
+/* 占位符样式 */
 .camera-placeholder {
     position: absolute;
     top: 0;
@@ -1304,45 +1268,24 @@ footer {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* iOS Safari特定修复 */
+/* iOS设备特定样式 */
 @supports (-webkit-touch-callout: none) {
-    /* iOS设备 */
-    .camera-container {
-        position: relative;
-        overflow: hidden;
-        /* 防止iOS Safari中的双视频问题 */
-        transform: translateZ(0);
-        -webkit-transform: translateZ(0);
-        backface-visibility: hidden;
-        -webkit-backface-visibility: hidden;
-        perspective: 1000;
-        -webkit-perspective: 1000;
-    }
-    
-    video {
-        /* 确保iOS上视频正确显示 */
+    #video {
         position: absolute !important;
         top: 0 !important;
         left: 0 !important;
         width: 100% !important;
         height: 100% !important;
         object-fit: cover !important;
-        /* 防止iOS中的重复渲染 */
-        transform: translateZ(0);
-        -webkit-transform: translateZ(0);
-        /* 禁用iOS中可能导致问题的功能 */
-        -webkit-transform-style: preserve-3d;
+        z-index: 1;
     }
     
-    canvas {
-        /* 确保iOS上画布正确显示 */
+    #canvas {
         position: absolute !important;
         top: 0 !important;
         left: 0 !important;
         width: 100% !important;
         height: 100% !important;
-        /* 防止iOS中的重复渲染 */
-        transform: translateZ(0);
-        -webkit-transform: translateZ(0);
+        z-index: 2;
     }
 } 

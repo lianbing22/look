@@ -277,6 +277,10 @@ async function init() {
         window.addEventListener('orientationchange', handleOrientationChange);
     }
     
+    // 添加按钮事件监听器
+    startBtn.addEventListener('click', startDetection);
+    stopBtn.addEventListener('click', stopDetection);
+    
     // 监听电池状态（如果浏览器支持）
     if (navigator.getBattery) {
         try {
@@ -307,18 +311,24 @@ async function init() {
 async function loadModel() {
     try {
         console.time('模型加载时间');
+        console.log('开始加载COCO-SSD模型...');
         model = await cocoSsd.load();
         console.timeEnd('模型加载时间');
         
         isModelLoading = false;
         loadingIndicator.textContent = '模型加载完成，准备就绪';
+        console.log('模型加载完成');
+        
         setTimeout(() => {
             loadingIndicator.style.opacity = '0';
             setTimeout(() => loadingIndicator.style.display = 'none', 300);
         }, 1000);
+        
+        return model;
     } catch (error) {
         console.error('模型加载错误:', error);
         loadingIndicator.textContent = '模型加载失败: ' + error.message;
+        throw error;
     }
 }
 
@@ -453,12 +463,12 @@ async function startDetection() {
         isDetecting = true;
         startBtn.disabled = true;
         stopBtn.disabled = false;
-        saveBtn.disabled = true;
+        saveBtn.disabled = false; // 启用保存按钮
         startBtn.textContent = '识别中...';
         
-        // 使用默认设置或存储的设置
-        let settings = loadSettings();
-        startDetectionLoop(settings);
+        // 加载设置并开始检测循环
+        loadSettings();
+        startDetectionLoop();
         
         console.log('识别已开始');
         showNotification('已开始物体识别', 'success');
@@ -547,7 +557,7 @@ function startDetectionLoop(overrideSettings) {
     } else if (savedSettings) {
         try {
             const settings = JSON.parse(savedSettings);
-            if (settings.updateInterval) {
+            if (settings && settings.updateInterval) {
                 updateInterval = settings.updateInterval;
                 originalUpdateInterval = updateInterval; // 记录原始设置
             }
@@ -555,6 +565,8 @@ function startDetectionLoop(overrideSettings) {
             console.error('读取设置失败:', e);
         }
     }
+    
+    console.log('开始检测循环，更新间隔:', updateInterval, 'ms');
     
     // 如果低电量且是移动设备，增加间隔减少耗电
     if (lowBattery && isMobileDevice && !isReducedFrameRate) {
@@ -580,6 +592,9 @@ function startDetectionLoop(overrideSettings) {
             // 执行物体检测
             detectObjects().then(() => {
                 pendingDetection = false;
+            }).catch(error => {
+                pendingDetection = false;
+                console.error('检测过程出错:', error);
             });
         }
         
@@ -593,25 +608,53 @@ function startDetectionLoop(overrideSettings) {
 
 // 绘制视频帧到画布
 function drawVideoFrame() {
-    if (!video.paused && !video.ended) {
-        const containerWidth = canvas.width / devicePixelRatio;
-        const containerHeight = canvas.height / devicePixelRatio;
-        
-        // 清除画布
-        ctx.clearRect(0, 0, containerWidth, containerHeight);
-        
-        // 在画布上绘制视频帧
+    if (!video || !video.videoWidth || !video.videoHeight) {
+        return;
+    }
+    
+    if (video.paused || video.ended) {
+        return;
+    }
+    
+    if (!ctx) {
+        console.error('未找到画布上下文');
+        return;
+    }
+    
+    const containerWidth = canvas.width / devicePixelRatio;
+    const containerHeight = canvas.height / devicePixelRatio;
+    
+    // 清除画布
+    ctx.clearRect(0, 0, containerWidth, containerHeight);
+    
+    // 在画布上绘制视频帧
+    try {
         ctx.drawImage(
             video,
             0, 0, video.videoWidth, video.videoHeight,
             0, 0, containerWidth, containerHeight
         );
+    } catch (error) {
+        console.error('绘制视频帧失败:', error);
     }
 }
 
 // 检测物体
 async function detectObjects() {
-    if (!model || !video.readyState || video.paused || video.ended) return;
+    if (!model) {
+        console.warn('模型尚未加载，跳过检测');
+        return [];
+    }
+    
+    if (!video.readyState || video.readyState < 2) {
+        console.warn('视频尚未准备好，跳过检测');
+        return [];
+    }
+    
+    if (video.paused || video.ended) {
+        console.warn('视频已暂停或结束，跳过检测');
+        return [];
+    }
     
     try {
         // 获取设置
@@ -623,17 +666,21 @@ async function detectObjects() {
         if (savedSettings) {
             try {
                 const settings = JSON.parse(savedSettings);
-                threshold = settings.detectionThreshold || threshold;
-                maxDetections = settings.maxDetections || maxDetections;
-                showBoundingBox = settings.showBoundingBox !== undefined ? 
-                                 settings.showBoundingBox : showBoundingBox;
+                if (settings) {
+                    threshold = settings.detectionThreshold || threshold;
+                    maxDetections = settings.maxDetections || maxDetections;
+                    showBoundingBox = settings.showBoundingBox !== undefined ? 
+                                     settings.showBoundingBox : showBoundingBox;
+                }
             } catch (e) {
                 console.error('读取设置失败:', e);
             }
         }
         
         // 执行检测
+        console.log('执行物体检测...');
         const predictions = await model.detect(video);
+        console.log(`检测到 ${predictions.length} 个物体`);
         
         // 过滤低置信度结果和限制数量
         const filteredPredictions = predictions
@@ -648,8 +695,10 @@ async function detectObjects() {
         // 更新结果列表
         updatePredictionsList(filteredPredictions);
         
+        return filteredPredictions;
     } catch (error) {
         console.error('检测错误:', error);
+        return [];
     }
 }
 

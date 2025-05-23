@@ -414,7 +414,7 @@ function applySettings(settings) {
     }
 }
 
-// 开始检测 - 更新为使用优化的视频约束
+// 开始检测 - 优化移动设备体验
 async function startDetection() {
     if (isDetecting) return;
     
@@ -446,20 +446,52 @@ async function startDetection() {
             video.srcObject = null;
         }
         
-        // 准备视频约束条件
-        const constraints = getOptimalVideoConstraints();
-        console.log('使用视频约束:', constraints);
+        // 检测设备方向和类型
+        const isLandscape = window.innerWidth > window.innerHeight;
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         
-        // 特殊处理iOS设备
-        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        // 调整视频约束条件
+        let constraints = {};
+        
+        if (isMobile) {
+            if (isLandscape) {
+                // 横屏手机
+                constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 }
+                    },
+                    audio: false
+                };
+            } else {
+                // 竖屏手机
+                constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 720, max: 1080 },
+                        height: { ideal: 1280, max: 1920 }
+                    },
+                    audio: false
+                };
+            }
+        } else {
+            // 桌面设备
+            constraints = {
+                video: {
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 }
+                },
+                audio: false
+            };
+        }
+        
+        console.log('使用视频约束:', constraints);
+        loadingIndicator.textContent = '请求摄像头权限...';
         
         try {
-            // 首先尝试使用指定的约束
-            loadingIndicator.textContent = '请求摄像头权限...';
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: constraints,
-                audio: false
-            });
+            // 请求摄像头权限
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
             console.log('成功获取视频流，轨道数量:', stream.getVideoTracks().length);
             
             // 检查视频轨道
@@ -472,35 +504,12 @@ async function startDetection() {
             console.warn('使用优化约束获取摄像头失败，尝试备用方法', initialError);
             loadingIndicator.textContent = '摄像头访问失败，尝试备用方法...';
             
-            // 如果是iOS设备且初次请求失败，尝试使用简化约束
-            if (isIOS) {
-                try {
-                    // iOS备用方案：使用最简单的约束
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: true,
-                        audio: false
-                    });
-                    console.log('使用简化约束成功获取iOS摄像头');
-                } catch (iosError) {
-                    throw new Error(`iOS设备摄像头访问失败: ${iosError.message}`);
-                }
-            } else {
-                // 非iOS设备备用方案：尝试只指定后置摄像头
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: { ideal: 'environment' } },
-                        audio: false
-                    });
-                    console.log('使用基本后置摄像头约束成功');
-                } catch (fallbackError) {
-                    // 最后尝试最简单的约束
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: true,
-                        audio: false
-                    });
-                    console.log('使用最简单约束成功获取摄像头');
-                }
-            }
+            // 备用方法：简化约束
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false
+            });
+            console.log('使用简化约束成功获取摄像头');
         }
         
         loadingIndicator.textContent = '正在初始化视频流...';
@@ -600,7 +609,7 @@ async function startDetection() {
 
 // 优化画布大小调整函数
 function resizeCanvas() {
-    if (!video || !video.videoWidth) {
+    if (!video) {
         console.log('视频尚未准备好，无法调整画布大小');
         return;
     }
@@ -617,39 +626,34 @@ function resizeCanvas() {
     
     console.log(`容器尺寸: ${containerWidth}x${containerHeight}`);
     
-    // 计算视频宽高比
-    const videoRatio = video.videoWidth / video.videoHeight;
-    console.log(`视频分辨率: ${video.videoWidth}x${video.videoHeight}, 比例: ${videoRatio.toFixed(2)}`);
+    // 检测是否为移动设备
+    const isMobile = window.innerWidth <= 768;
     
-    // 调整画布大小以匹配容器
-    let canvasWidth, canvasHeight;
+    // 设置画布CSS尺寸匹配容器
+    canvas.style.width = `${containerWidth}px`;
+    canvas.style.height = `${containerHeight}px`;
     
-    if (containerWidth / containerHeight > videoRatio) {
-        // 容器更宽，以高度为准
-        canvasHeight = containerHeight;
-        canvasWidth = canvasHeight * videoRatio;
-    } else {
-        // 容器更高，以宽度为准
-        canvasWidth = containerWidth;
-        canvasHeight = canvasWidth / videoRatio;
+    // 根据设备像素比调整画布实际大小
+    const capabilities = detectDeviceCapabilities();
+    
+    // 在移动设备上，可以降低分辨率以提高性能
+    let scaleFactor = isMobile ? 
+        Math.min(window.devicePixelRatio, 1.5) : // 移动设备最大1.5倍
+        Math.min(window.devicePixelRatio, 2);    // 桌面设备最大2倍
+    
+    // 低性能设备进一步降低分辨率
+    if (capabilities.isLowPerformance) {
+        scaleFactor = Math.min(scaleFactor, 1.0);
     }
     
-    // 设置画布尺寸
-    const capabilities = detectDeviceCapabilities();
-    const scaleFactor = capabilities.isHighDensity ? Math.min(window.devicePixelRatio, 2) : devicePixelRatio;
-    
     // 调整画布大小
-    canvas.width = canvasWidth * scaleFactor;
-    canvas.height = canvasHeight * scaleFactor;
+    canvas.width = containerWidth * scaleFactor;
+    canvas.height = containerHeight * scaleFactor;
     
-    // 设置画布CSS尺寸
-    canvas.style.width = `${canvasWidth}px`;
-    canvas.style.height = `${canvasHeight}px`;
-    
-    // 调整渲染上下文比例
+    // 重置上下文设置，因为调整画布大小会重置上下文
     ctx.scale(scaleFactor, scaleFactor);
     
-    console.log(`画布已调整: ${canvasWidth}x${canvasHeight}, 设备像素比: ${scaleFactor}, 实际画布尺寸: ${canvas.width}x${canvas.height}`);
+    console.log(`画布已调整: ${containerWidth}x${containerHeight}, 设备像素比: ${scaleFactor}, 实际画布尺寸: ${canvas.width}x${canvas.height}`);
 }
 
 // 开始检测循环
@@ -681,10 +685,22 @@ function startDetectionLoop(overrideSettings) {
     
     console.log('开始检测循环，更新间隔:', updateInterval, 'ms');
     
+    // 设备特性检测
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const capabilities = detectDeviceCapabilities();
+    
+    // 根据设备能力调整更新间隔
+    if (capabilities.isLowPerformance) {
+        // 低性能设备增加间隔
+        updateInterval = Math.max(updateInterval, 200);
+        console.log('低性能设备，增加更新间隔至:', updateInterval);
+    }
+    
     // 如果低电量且是移动设备，增加间隔减少耗电
-    if (lowBattery && isMobileDevice && !isReducedFrameRate) {
+    if (lowBattery && isMobile && !isReducedFrameRate) {
         updateInterval = Math.min(updateInterval * 2, 1000);
         isReducedFrameRate = true;
+        console.log('低电量模式，增加更新间隔至:', updateInterval);
     }
     
     // 重置检测计时器
@@ -748,14 +764,48 @@ function drawVideoFrame() {
     // 清除画布
     ctx.clearRect(0, 0, containerWidth, containerHeight);
     
+    // 计算视频与画布的比例关系
+    const videoRatio = video.videoWidth / video.videoHeight;
+    const canvasRatio = containerWidth / containerHeight;
+    
+    // 对于移动设备，使用全屏模式
+    const isMobile = window.innerWidth <= 768;
+    let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+    
+    if (isMobile) {
+        // 移动设备上填满全屏
+        drawWidth = containerWidth;
+        drawHeight = containerHeight;
+    } else {
+        // 桌面设备上保持比例
+        if (videoRatio > canvasRatio) {
+            // 视频更宽，上下有黑边
+            drawWidth = containerWidth;
+            drawHeight = drawWidth / videoRatio;
+            offsetY = (containerHeight - drawHeight) / 2;
+        } else {
+            // 视频更高，左右有黑边
+            drawHeight = containerHeight;
+            drawWidth = drawHeight * videoRatio;
+            offsetX = (containerWidth - drawWidth) / 2;
+        }
+    }
+    
     // 在画布上绘制视频帧 - 只绘制一次，不要分屏
     try {
-        // 整个画布绘制一个完整的视频帧
+        // 绘制视频帧，填充适当区域
         ctx.drawImage(
             video,
             0, 0, video.videoWidth, video.videoHeight,
-            0, 0, containerWidth, containerHeight
+            offsetX, offsetY, drawWidth, drawHeight
         );
+        
+        // 如果有黑边，绘制边框以美观
+        if (offsetX > 0 || offsetY > 0) {
+            ctx.strokeStyle = 'rgba(0, 200, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(offsetX, offsetY, drawWidth, drawHeight);
+        }
     } catch (error) {
         console.error('绘制视频帧失败:', error);
     }
@@ -849,16 +899,26 @@ function drawPredictions(predictions) {
     // 计算视频在画布中的实际显示尺寸和位置
     let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
     
-    if (videoRatio > canvasRatio) {
-        // 视频更宽，两侧有黑边
-        drawHeight = canvasHeight;
-        drawWidth = drawHeight * videoRatio;
-        offsetX = (canvasWidth - drawWidth) / 2;
-    } else {
-        // 视频更高，上下有黑边
+    // 对于移动设备，使用全屏模式
+    const isMobile = window.innerWidth <= 768;
+    
+    if (isMobile) {
+        // 移动设备上全屏显示
         drawWidth = canvasWidth;
-        drawHeight = drawWidth / videoRatio;
-        offsetY = (canvasHeight - drawHeight) / 2;
+        drawHeight = canvasHeight;
+    } else {
+        // 桌面设备上保持比例
+        if (videoRatio > canvasRatio) {
+            // 视频更宽，上下有黑边
+            drawWidth = canvasWidth;
+            drawHeight = drawWidth / videoRatio;
+            offsetY = (canvasHeight - drawHeight) / 2;
+        } else {
+            // 视频更高，左右有黑边
+            drawHeight = canvasHeight;
+            drawWidth = drawHeight * videoRatio;
+            offsetX = (canvasWidth - drawWidth) / 2;
+        }
     }
     
     // 计算缩放比例
@@ -921,20 +981,33 @@ function drawPredictions(predictions) {
         const labelWidth = textMetrics.width + 10;
         const labelHeight = 24;
         
+        // 计算标签位置 - 标签放在框的顶部但确保在画布内
+        let labelX = scaledX;
+        let labelY = scaledY - labelHeight - 5; // 标签放在框的上方，留出5px间距
+        
+        // 如果标签会超出顶部，则放在框内的顶部
+        if (labelY < 0) {
+            labelY = scaledY + 5;
+        }
+        
+        // 确保标签不会超出右侧边界
+        if (labelX + labelWidth > canvasWidth) {
+            labelX = canvasWidth - labelWidth - 5;
+        }
+        
         // 绘制标签背景 - 带圆角
         ctx.fillStyle = color;
-        // 标签背景位置改为左上角
         ctx.beginPath();
         const labelRadius = 4;
-        ctx.moveTo(scaledX + labelRadius, scaledY - labelHeight);
-        ctx.lineTo(scaledX + labelWidth - labelRadius, scaledY - labelHeight);
-        ctx.arcTo(scaledX + labelWidth, scaledY - labelHeight, scaledX + labelWidth, scaledY - labelHeight + labelRadius, labelRadius);
-        ctx.lineTo(scaledX + labelWidth, scaledY - labelRadius);
-        ctx.arcTo(scaledX + labelWidth, scaledY, scaledX + labelWidth - labelRadius, scaledY, labelRadius);
-        ctx.lineTo(scaledX + labelRadius, scaledY);
-        ctx.arcTo(scaledX, scaledY, scaledX, scaledY - labelRadius, labelRadius);
-        ctx.lineTo(scaledX, scaledY - labelHeight + labelRadius);
-        ctx.arcTo(scaledX, scaledY - labelHeight, scaledX + labelRadius, scaledY - labelHeight, labelRadius);
+        ctx.moveTo(labelX + labelRadius, labelY);
+        ctx.lineTo(labelX + labelWidth - labelRadius, labelY);
+        ctx.arcTo(labelX + labelWidth, labelY, labelX + labelWidth, labelY + labelRadius, labelRadius);
+        ctx.lineTo(labelX + labelWidth, labelY + labelHeight - labelRadius);
+        ctx.arcTo(labelX + labelWidth, labelY + labelHeight, labelX + labelWidth - labelRadius, labelY + labelHeight, labelRadius);
+        ctx.lineTo(labelX + labelRadius, labelY + labelHeight);
+        ctx.arcTo(labelX, labelY + labelHeight, labelX, labelY + labelHeight - labelRadius, labelRadius);
+        ctx.lineTo(labelX, labelY + labelRadius);
+        ctx.arcTo(labelX, labelY, labelX + labelRadius, labelY, labelRadius);
         ctx.fill();
         
         // 设置文本样式
@@ -942,7 +1015,7 @@ function drawPredictions(predictions) {
         ctx.textBaseline = 'middle';
         
         // 绘制标签文本
-        ctx.fillText(labelText, scaledX + 5, scaledY - labelHeight / 2);
+        ctx.fillText(labelText, labelX + 5, labelY + labelHeight / 2);
     });
 }
 

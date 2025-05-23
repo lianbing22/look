@@ -432,28 +432,6 @@ footer {
     box-shadow: 0 0 10px rgba(0, 112, 243, 0.3);
 }
 
-/* 添加动画和发光效果 */
-@keyframes pulse {
-    0% { opacity: 0.7; }
-    50% { opacity: 1; }
-    100% { opacity: 0.7; }
-}
-
-.camera-focus {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    border: 2px solid rgba(0, 200, 255, 0.7);
-    transform: translate(-50%, -50%);
-    z-index: 15;
-    box-shadow: 0 0 10px rgba(0, 200, 255, 0.3);
-    pointer-events: none;
-    animation: pulse 2s infinite;
-}
-
 /* 帮助覆盖层样式 */
 .help-overlay {
     position: fixed;

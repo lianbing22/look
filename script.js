@@ -362,7 +362,36 @@ async function init() {
     }
 }
 
-// 加载模型
+// 添加iOS设备检测函数
+function isIOSDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+// 添加iOS设备的后备模型加载方案
+async function loadModelFallback() {
+    console.log('尝试使用轻量级模型备选方案');
+    loadingIndicator.textContent = '正在尝试备选模型...';
+    
+    try {
+        // 尝试加载更轻量级的COCO-SSD模型 (lite)
+        const modelUrl = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/model.json';
+        const model = await window.cocoSsd.load({
+            base: 'lite', // 使用更轻量的模型
+            modelUrl: modelUrl
+        });
+        
+        console.log('备选轻量模型加载成功');
+        loadingIndicator.textContent = '备选模型加载成功，准备开始识别';
+        
+        return model;
+    } catch (fallbackError) {
+        console.error('备选模型加载失败:', fallbackError);
+        loadingIndicator.textContent = '所有模型加载失败，请尝试使用Safari浏览器';
+        throw fallbackError;
+    }
+}
+
+// 修改原始loadModel函数中的错误处理部分
 async function loadModel() {
     try {
         // 显示加载指示器
@@ -372,8 +401,62 @@ async function loadModel() {
         console.time('模型加载时间');
         console.log('开始加载COCO-SSD模型...');
         
-        // 开始加载模型
-        model = await cocoSsd.load();
+        // 检测是否为iOS设备
+        const isIOS = isIOSDevice();
+        console.log('设备检测: iOS设备 =', isIOS);
+        
+        // 针对iOS设备采取特殊措施
+        if (isIOS) {
+            console.log('使用iOS兼容模式加载模型');
+            // 确保tfjs已加载
+            if (!window.tf) {
+                console.warn('TensorFlow.js未加载，尝试动态加载');
+                await new Promise((resolve) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0';
+                    script.onload = resolve;
+                    script.onerror = () => {
+                        console.error('TensorFlow.js加载失败');
+                        resolve(); // 继续执行以便显示错误信息
+                    };
+                    document.head.appendChild(script);
+                });
+            }
+            
+            // 确保coco-ssd已加载
+            if (!window.cocoSsd) {
+                console.warn('COCO-SSD未加载，尝试动态加载');
+                await new Promise((resolve) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2';
+                    script.onload = resolve;
+                    script.onerror = () => {
+                        console.error('COCO-SSD加载失败');
+                        resolve(); // 继续执行以便显示错误信息
+                    };
+                    document.head.appendChild(script);
+                });
+            }
+            
+            // 等待一段时间确保脚本完全初始化
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        // 确保cocoSsd存在
+        if (!window.cocoSsd) {
+            throw new Error('COCO-SSD模型未能正确加载，请刷新页面重试');
+        }
+        
+        // 使用有版本号的加载方式，设置超时
+        let modelLoadPromise = window.cocoSsd.load();
+        
+        // 添加超时
+        let timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('模型加载超时，请检查网络连接')), 30000)
+        );
+        
+        // 使用Promise.race加载模型
+        model = await Promise.race([modelLoadPromise, timeoutPromise]);
         
         console.timeEnd('模型加载时间');
         console.log('模型加载完成');
@@ -395,11 +478,49 @@ async function loadModel() {
     } catch (error) {
         console.error('模型加载错误:', error);
         
-        // 显示错误信息
-        loadingIndicator.textContent = '模型加载失败: ' + error.message;
-        loadingIndicator.style.backgroundColor = 'rgba(220, 53, 69, 0.9)'; // 红色背景表示错误
+        // 更新错误提示信息
+        let errorMessage = '模型加载失败';
+        if (error.message) {
+            if (error.message.includes('timeout')) {
+                errorMessage += ': 加载超时，请检查网络连接';
+            } else if (error.message.includes('AbortError')) {
+                errorMessage += ': 浏览器中断了请求';
+            } else if (error.message.includes('NotAllowedError')) {
+                errorMessage += ': 浏览器策略限制';
+            } else {
+                errorMessage += ': ' + error.message;
+            }
+        }
         
-        // 3秒后隐藏错误信息
+        // 在iOS设备上尝试备选方案
+        if (isIOSDevice()) {
+            try {
+                loadingIndicator.textContent = '标准模型加载失败，尝试备选方案...';
+                model = await loadModelFallback();
+                isModelLoading = false;
+                
+                // 加载成功，隐藏加载指示器
+                setTimeout(() => {
+                    loadingIndicator.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingIndicator.style.display = 'none';
+                        loadingIndicator.style.opacity = '1';
+                    }, 500);
+                }, 1500);
+                
+                return model;
+            } catch (fallbackError) {
+                // 备选方案也失败
+                errorMessage += '\n请尝试使用Safari浏览器，或关闭并重新打开浏览器';
+            }
+        }
+        
+        // 显示错误信息
+        loadingIndicator.textContent = errorMessage;
+        loadingIndicator.style.backgroundColor = 'rgba(220, 53, 69, 0.9)'; // 红色背景表示错误
+        loadingIndicator.style.display = 'block';
+        
+        // 延长显示错误信息的时间
         setTimeout(() => {
             loadingIndicator.style.opacity = '0';
             setTimeout(() => {
@@ -407,7 +528,7 @@ async function loadModel() {
                 loadingIndicator.style.opacity = '1';
                 loadingIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.8)'; // 恢复原来的背景色
             }, 500);
-        }, 3000);
+        }, 5000);
         
         throw error;
     }

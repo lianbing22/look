@@ -305,6 +305,9 @@ async function init() {
     startBtn.addEventListener('click', startDetection);
     stopBtn.addEventListener('click', stopDetection);
     
+    // 检查URL参数，处理快捷方式跳转
+    handleURLParameters();
+    
     // 监听电池状态（如果浏览器支持）
     if (navigator.getBattery) {
         try {
@@ -745,9 +748,9 @@ function drawVideoFrame() {
     // 清除画布
     ctx.clearRect(0, 0, containerWidth, containerHeight);
     
-    // 在画布上绘制视频帧
+    // 在画布上绘制视频帧 - 只绘制一次，不要分屏
     try {
-        // 简单绘制整个视频帧，不添加任何分屏效果
+        // 整个画布绘制一个完整的视频帧
         ctx.drawImage(
             video,
             0, 0, video.videoWidth, video.videoHeight,
@@ -831,30 +834,15 @@ async function detectObjects() {
 
 // 绘制预测结果
 function drawPredictions(predictions) {
-    // 确保先完全清除画布，避免叠加绘制
-    const canvasWidth = canvas.width / devicePixelRatio;
-    const canvasHeight = canvas.height / devicePixelRatio;
-    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-    
-    // 重新绘制视频帧
-    if (video && video.readyState >= 2 && !video.paused && !video.ended) {
-        try {
-            ctx.drawImage(
-                video,
-                0, 0, video.videoWidth, video.videoHeight,
-                0, 0, canvasWidth, canvasHeight
-            );
-        } catch (error) {
-            console.error('绘制视频帧失败:', error);
-        }
-    }
-    
+    // 不重新绘制视频帧，只在现有视频帧上绘制边界框
     // 没有预测结果时直接返回
     if (!predictions || predictions.length === 0) {
         return;
     }
     
     // 计算视频和画布实际尺寸比例
+    const canvasWidth = canvas.width / devicePixelRatio;
+    const canvasHeight = canvas.height / devicePixelRatio;
     const videoRatio = video.videoWidth / video.videoHeight;
     const canvasRatio = canvasWidth / canvasHeight;
     
@@ -904,13 +892,23 @@ function drawPredictions(predictions) {
             color = colorMap.person;
         }
         
-        // 设置边界框样式
+        // 优化边界框样式
         ctx.strokeStyle = color;
         ctx.lineWidth = 3; // 加粗线条
         
-        // 绘制边界框
+        // 绘制边界框 - 添加圆角
         ctx.beginPath();
-        ctx.rect(scaledX, scaledY, scaledWidth, scaledHeight);
+        // 使用圆角矩形
+        const radius = 5; // 圆角半径
+        ctx.moveTo(scaledX + radius, scaledY);
+        ctx.lineTo(scaledX + scaledWidth - radius, scaledY);
+        ctx.arcTo(scaledX + scaledWidth, scaledY, scaledX + scaledWidth, scaledY + radius, radius);
+        ctx.lineTo(scaledX + scaledWidth, scaledY + scaledHeight - radius);
+        ctx.arcTo(scaledX + scaledWidth, scaledY + scaledHeight, scaledX + scaledWidth - radius, scaledY + scaledHeight, radius);
+        ctx.lineTo(scaledX + radius, scaledY + scaledHeight);
+        ctx.arcTo(scaledX, scaledY + scaledHeight, scaledX, scaledY + scaledHeight - radius, radius);
+        ctx.lineTo(scaledX, scaledY + radius);
+        ctx.arcTo(scaledX, scaledY, scaledX + radius, scaledY, radius);
         ctx.stroke();
         
         // 创建标签背景
@@ -923,9 +921,21 @@ function drawPredictions(predictions) {
         const labelWidth = textMetrics.width + 10;
         const labelHeight = 24;
         
-        // 绘制标签背景
+        // 绘制标签背景 - 带圆角
         ctx.fillStyle = color;
-        ctx.fillRect(scaledX, scaledY - labelHeight, labelWidth, labelHeight);
+        // 标签背景位置改为左上角
+        ctx.beginPath();
+        const labelRadius = 4;
+        ctx.moveTo(scaledX + labelRadius, scaledY - labelHeight);
+        ctx.lineTo(scaledX + labelWidth - labelRadius, scaledY - labelHeight);
+        ctx.arcTo(scaledX + labelWidth, scaledY - labelHeight, scaledX + labelWidth, scaledY - labelHeight + labelRadius, labelRadius);
+        ctx.lineTo(scaledX + labelWidth, scaledY - labelRadius);
+        ctx.arcTo(scaledX + labelWidth, scaledY, scaledX + labelWidth - labelRadius, scaledY, labelRadius);
+        ctx.lineTo(scaledX + labelRadius, scaledY);
+        ctx.arcTo(scaledX, scaledY, scaledX, scaledY - labelRadius, labelRadius);
+        ctx.lineTo(scaledX, scaledY - labelHeight + labelRadius);
+        ctx.arcTo(scaledX, scaledY - labelHeight, scaledX + labelRadius, scaledY - labelHeight, labelRadius);
+        ctx.fill();
         
         // 设置文本样式
         ctx.fillStyle = 'white';
@@ -1905,4 +1915,26 @@ document.addEventListener('keydown', function(e) {
             document.removeEventListener('click', handleOutsideHistoryClick);
         }
     }
-}); 
+});
+
+// 处理URL参数和快捷方式
+function handleURLParameters() {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    
+    if (action === 'detect') {
+        // 自动开始检测
+        setTimeout(() => {
+            if (!isDetecting && startBtn && !startBtn.disabled) {
+                startBtn.click();
+            }
+        }, 1000);
+    } else if (action === 'history') {
+        // 自动打开历史记录
+        setTimeout(() => {
+            if (historyBtn) {
+                historyBtn.click();
+            }
+        }, 1000);
+    }
+} 

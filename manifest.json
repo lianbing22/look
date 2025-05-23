@@ -7,46 +7,70 @@
   "background_color": "#121212",
   "theme_color": "#0a1429",
   "orientation": "any",
+  "shortcuts": [
+    {
+      "name": "开始识别",
+      "short_name": "识别",
+      "description": "直接启动相机进行物体识别",
+      "url": "./index.html?action=detect",
+      "icons": [{"src": "icons/icon-192x192.png", "sizes": "192x192"}]
+    },
+    {
+      "name": "查看历史记录",
+      "short_name": "历史",
+      "description": "查看之前保存的识别结果",
+      "url": "./index.html?action=history",
+      "icons": [{"src": "icons/icon-192x192.png", "sizes": "192x192"}]
+    }
+  ],
   "icons": [
     {
       "src": "icons/icon-72x72.png",
       "sizes": "72x72",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-96x96.png",
       "sizes": "96x96",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-128x128.png",
       "sizes": "128x128",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-144x144.png",
       "sizes": "144x144",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-152x152.png",
       "sizes": "152x152",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-384x384.png",
       "sizes": "384x384",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "lang": "zh-CN",
@@ -55,7 +79,7 @@
   "categories": ["productivity", "utilities", "education"],
   "screenshots": [
     {
-      "src": "icons/screenshot.jpg",
+      "src": "screenshots/screenshot1.jpg",
       "sizes": "1280x720",
       "type": "image/jpeg"
     }

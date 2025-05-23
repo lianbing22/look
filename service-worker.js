@@ -1,7 +1,7 @@
 // 缓存名称和版本
-const CACHE_NAME = 'hengtai-vision-cache-v2';
+const CACHE_NAME = 'hengtai-vision-cache-v3';
 
-// 需要缓存的资源列表
+// 需要缓存的资源列表 - 增加更多资源
 const CACHE_URLS = [
   './',
   './index.html',
@@ -12,7 +12,15 @@ const CACHE_URLS = [
   './admin/admin.js',
   './manifest.json',
   'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs',
-  'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd'
+  'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd',
+  './icons/icon-72x72.png',
+  './icons/icon-96x96.png',
+  './icons/icon-128x128.png',
+  './icons/icon-144x144.png',
+  './icons/icon-152x152.png',
+  './icons/icon-192x192.png',
+  './icons/icon-384x384.png',
+  './icons/icon-512x512.png'
 ];
 
 // 安装Service Worker
@@ -73,6 +81,45 @@ self.addEventListener('fetch', event => {
     return;
   }
   
+  // 忽略非GET请求和非http(s)请求
+  if (event.request.method !== 'GET' || 
+      !event.request.url.startsWith('http')) {
+    return;
+  }
+  
+  // 对于模型文件使用缓存优先策略，避免重复下载大文件
+  if (event.request.url.includes('@tensorflow') || 
+      event.request.url.includes('coco-ssd')) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(cachedResponse => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          
+          return fetch(event.request)
+            .then(response => {
+              // 确保响应有效
+              if (!response || response.status !== 200 || response.type !== 'basic') {
+                return response;
+              }
+              
+              // 克隆响应以便同时存入缓存和返回给浏览器
+              const responseToCache = response.clone();
+              
+              caches.open(CACHE_NAME)
+                .then(cache => {
+                  cache.put(event.request, responseToCache);
+                  console.log('已缓存模型文件:', event.request.url);
+                });
+              
+              return response;
+            });
+        })
+    );
+    return;
+  }
+  
   // 对于API请求和摄像头流，使用网络优先策略
   if (event.request.url.includes('getUserMedia') || 
       event.request.url.includes('camera') || 
@@ -92,6 +139,27 @@ self.addEventListener('fetch', event => {
       .then(response => {
         // 如果找到缓存的响应，则返回缓存
         if (response) {
+          // 对于HTML和CSS文件，如果网络可用，在后台更新缓存
+          if (event.request.url.endsWith('.html') || 
+              event.request.url.endsWith('.css') ||
+              event.request.url.endsWith('.js')) {
+            
+            fetch(event.request)
+              .then(networkResponse => {
+                if (networkResponse && networkResponse.status === 200) {
+                  const responseToCache = networkResponse.clone();
+                  caches.open(CACHE_NAME)
+                    .then(cache => {
+                      cache.put(event.request, responseToCache);
+                      console.log('后台更新缓存:', event.request.url);
+                    });
+                }
+              })
+              .catch(() => {
+                // 忽略后台更新错误
+              });
+          }
+          
           return response;
         }
         
@@ -99,7 +167,7 @@ self.addEventListener('fetch', event => {
         return fetch(event.request)
           .then(networkResponse => {
             // 如果获得了有效响应，将其缓存
-            if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            if (networkResponse && networkResponse.status === 200) {
               const responseToCache = networkResponse.clone();
               
               caches.open(CACHE_NAME)

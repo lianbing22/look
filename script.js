@@ -6,9 +6,26 @@ const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const saveBtn = document.getElementById('saveBtn');
 const predictionsEl = document.getElementById('predictions');
-const loadingIndicator = document.createElement('div'); // 加载指示器
 const cameraPlaceholder = document.getElementById('cameraPlaceholder');
 const cameraFocus = document.querySelector('.camera-focus');
+
+// 创建加载指示器并设置样式
+const loadingIndicator = document.createElement('div');
+loadingIndicator.className = 'loading-indicator';
+loadingIndicator.style.position = 'absolute';
+loadingIndicator.style.top = '50%';
+loadingIndicator.style.left = '50%';
+loadingIndicator.style.transform = 'translate(-50%, -50%)';
+loadingIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+loadingIndicator.style.color = 'white';
+loadingIndicator.style.padding = '15px 20px';
+loadingIndicator.style.borderRadius = '8px';
+loadingIndicator.style.zIndex = '1000';
+loadingIndicator.style.textAlign = 'center';
+loadingIndicator.style.transition = 'opacity 0.3s ease';
+loadingIndicator.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+loadingIndicator.style.fontSize = '14px';
+loadingIndicator.style.display = 'none';
 
 // 添加帮助相关元素
 const helpBtn = document.getElementById('helpBtn');
@@ -257,9 +274,16 @@ function getOptimalVideoConstraints() {
 
 // 初始化
 async function init() {
-    loadingIndicator.classList.add('loading-indicator');
+    // 将加载指示器添加到camera-container中，使其居中显示
+    const cameraContainer = document.querySelector('.camera-container');
+    if (cameraContainer) {
+        cameraContainer.appendChild(loadingIndicator);
+    } else {
+        document.body.appendChild(loadingIndicator);
+    }
+    
     loadingIndicator.textContent = '正在加载模型...';
-    document.body.appendChild(loadingIndicator);
+    loadingIndicator.style.display = 'block';
     
     // 初始化设置
     loadSettings();
@@ -310,24 +334,50 @@ async function init() {
 // 加载模型
 async function loadModel() {
     try {
+        // 显示加载指示器
+        loadingIndicator.textContent = '正在加载AI模型...';
+        loadingIndicator.style.display = 'block';
+        
         console.time('模型加载时间');
         console.log('开始加载COCO-SSD模型...');
-        model = await cocoSsd.load();
-        console.timeEnd('模型加载时间');
         
-        isModelLoading = false;
-        loadingIndicator.textContent = '模型加载完成，准备就绪';
+        // 开始加载模型
+        model = await cocoSsd.load();
+        
+        console.timeEnd('模型加载时间');
         console.log('模型加载完成');
         
+        // 更新状态
+        isModelLoading = false;
+        loadingIndicator.textContent = 'AI模型加载完成，点击开始识别按钮开始';
+        
+        // 淡出加载指示器
         setTimeout(() => {
             loadingIndicator.style.opacity = '0';
-            setTimeout(() => loadingIndicator.style.display = 'none', 300);
-        }, 1000);
+            setTimeout(() => {
+                loadingIndicator.style.display = 'none';
+                loadingIndicator.style.opacity = '1'; // 重置透明度以便下次显示
+            }, 500);
+        }, 1500);
         
         return model;
     } catch (error) {
         console.error('模型加载错误:', error);
+        
+        // 显示错误信息
         loadingIndicator.textContent = '模型加载失败: ' + error.message;
+        loadingIndicator.style.backgroundColor = 'rgba(220, 53, 69, 0.9)'; // 红色背景表示错误
+        
+        // 3秒后隐藏错误信息
+        setTimeout(() => {
+            loadingIndicator.style.opacity = '0';
+            setTimeout(() => {
+                loadingIndicator.style.display = 'none';
+                loadingIndicator.style.opacity = '1';
+                loadingIndicator.style.backgroundColor = 'rgba(0, 0, 0, 0.8)'; // 恢复原来的背景色
+            }, 500);
+        }, 3000);
+        
         throw error;
     }
 }
@@ -372,10 +422,14 @@ async function startDetection() {
     startBtn.textContent = '正在准备...';
     predictionsEl.innerHTML = '';
     
+    // 显示加载指示器
+    loadingIndicator.textContent = '正在启动摄像头...';
+    loadingIndicator.style.display = 'block';
+    
     try {
         // 确保模型已加载
         if (!model) {
-            showNotification('正在加载AI模型，请稍候...', 'info', 3000);
+            loadingIndicator.textContent = '正在加载AI模型，请稍候...';
             await loadModel();
         }
         
@@ -394,6 +448,7 @@ async function startDetection() {
             });
         } catch (initialError) {
             console.warn('使用优化约束获取摄像头失败，尝试备用方法', initialError);
+            loadingIndicator.textContent = '摄像头访问失败，尝试备用方法...';
             
             // 如果是iOS设备且初次请求失败，尝试使用简化约束
             if (isIOS) {
@@ -426,6 +481,8 @@ async function startDetection() {
             }
         }
         
+        loadingIndicator.textContent = '正在初始化视频流...';
+        
         // 连接视频流
         video.srcObject = stream;
         
@@ -449,6 +506,13 @@ async function startDetection() {
                 throw new Error(`无法播放视频: ${playError.message}`);
             }
         }
+        
+        // 隐藏加载指示器
+        loadingIndicator.style.opacity = '0';
+        setTimeout(() => {
+            loadingIndicator.style.display = 'none';
+            loadingIndicator.style.opacity = '1';
+        }, 300);
         
         // 重设画布尺寸
         resizeCanvas();
@@ -475,6 +539,13 @@ async function startDetection() {
         
     } catch (error) {
         console.error('启动识别失败:', error);
+        
+        // 隐藏加载指示器
+        loadingIndicator.style.opacity = '0';
+        setTimeout(() => {
+            loadingIndicator.style.display = 'none';
+            loadingIndicator.style.opacity = '1';
+        }, 300);
         
         startBtn.disabled = false;
         startBtn.textContent = '开始识别';
@@ -547,6 +618,12 @@ function resizeCanvas() {
 
 // 开始检测循环
 function startDetectionLoop(overrideSettings) {
+    // 确保不会重复启动检测循环
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+    
     // 获取更新间隔设置
     const savedSettings = localStorage.getItem('hengtaiVisionSettings');
     let updateInterval = 100; // 默认值
@@ -574,6 +651,10 @@ function startDetectionLoop(overrideSettings) {
         isReducedFrameRate = true;
     }
     
+    // 重置检测计时器
+    lastDetectionTime = 0;
+    pendingDetection = false;
+    
     // 使用requestAnimationFrame进行高效渲染
     function detectFrame() {
         if (!isDetecting || !pageVisible) return;
@@ -599,7 +680,9 @@ function startDetectionLoop(overrideSettings) {
         }
         
         // 请求下一帧
-        animationFrameId = requestAnimationFrame(detectFrame);
+        if (isDetecting) {
+            animationFrameId = requestAnimationFrame(detectFrame);
+        }
     }
     
     // 开始循环
@@ -608,6 +691,9 @@ function startDetectionLoop(overrideSettings) {
 
 // 绘制视频帧到画布
 function drawVideoFrame() {
+    // 只在检测循环调用此函数，避免在drawPredictions中再调用
+    if (!isDetecting) return;
+    
     if (!video || !video.videoWidth || !video.videoHeight) {
         return;
     }
@@ -704,8 +790,19 @@ async function detectObjects() {
 
 // 绘制预测结果
 function drawPredictions(predictions) {
+    // 确保先完全清除画布，避免叠加绘制
     const canvasWidth = canvas.width / devicePixelRatio;
     const canvasHeight = canvas.height / devicePixelRatio;
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    
+    // 重新绘制视频帧
+    if (video && video.readyState >= 2 && !video.paused && !video.ended) {
+        ctx.drawImage(
+            video,
+            0, 0, video.videoWidth, video.videoHeight,
+            0, 0, canvasWidth, canvasHeight
+        );
+    }
     
     // 获取视频在画布上的实际尺寸
     const videoRatio = video.videoWidth / video.videoHeight;
@@ -867,6 +964,7 @@ function updatePredictionsList(predictions) {
 
 // 停止检测
 function stopDetection() {
+    // 先设置状态，防止新的检测循环开始
     isDetecting = false;
     
     // 取消动画帧
@@ -877,26 +975,47 @@ function stopDetection() {
     
     // 关闭摄像头
     if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach(track => {
+            track.stop();
+            console.log('已停止视频轨道:', track.kind);
+        });
         stream = null;
     }
     
     // 清除视频源
-    video.srcObject = null;
+    if (video) {
+        video.srcObject = null;
+        video.load(); // 强制重置视频元素
+    }
     
-    // 清除画布
-    ctx.clearRect(0, 0, canvas.width / devicePixelRatio, canvas.height / devicePixelRatio);
+    // 完全清除画布
+    if (ctx && canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
     
     // 显示相机占位符
-    cameraPlaceholder.style.display = 'flex';
+    if (cameraPlaceholder) {
+        cameraPlaceholder.style.display = 'flex';
+    }
+    
+    // 隐藏对焦框
+    if (cameraFocus) {
+        cameraFocus.style.display = 'none';
+    }
     
     // 重置按钮状态
     startBtn.disabled = false;
+    startBtn.textContent = '开始识别';
     stopBtn.disabled = true;
     saveBtn.disabled = true;
     
     // 清除结果列表
-    predictionsEl.innerHTML = '';
+    if (predictionsEl) {
+        predictionsEl.innerHTML = '';
+    }
+    
+    console.log('检测已停止，所有资源已释放');
+    showNotification('识别已停止', 'info');
 }
 
 // 帮助按钮点击事件

@@ -1,25 +1,30 @@
-// DOM元素
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
-const saveBtn = document.getElementById('saveBtn');
-const cameraPlaceholder = document.getElementById('cameraPlaceholder');
-const predictions = document.getElementById('predictions');
-const helpBtn = document.getElementById('helpBtn');
-const helpOverlay = document.getElementById('helpOverlay');
-const closeHelpBtn = document.getElementById('closeHelpBtn');
-const historyBtn = document.getElementById('historyBtn');
-const historyPanel = document.getElementById('historyPanel');
-const historyCloseBtn = document.getElementById('historyCloseBtn');
-const saveDialog = document.getElementById('saveDialog');
-const saveName = document.getElementById('saveName');
-const savePreview = document.getElementById('savePreview');
-const cancelSaveBtn = document.getElementById('cancelSaveBtn');
-const confirmSaveBtn = document.getElementById('confirmSaveBtn');
-const historyClearBtn = document.getElementById('historyClearBtn');
-const historyContent = document.getElementById('historyContent');
+// 安全获取DOM元素的工具函数
+function $(id) {
+    return document.getElementById(id);
+}
+
+// DOM元素 - 使用安全的方式获取元素
+const video = $('video');
+const canvas = $('canvas');
+const ctx = canvas && canvas.getContext('2d');
+const startBtn = $('startBtn');
+const stopBtn = $('stopBtn');
+const saveBtn = $('saveBtn');
+const cameraPlaceholder = $('cameraPlaceholder');
+const predictions = $('predictions');
+const helpBtn = $('helpBtn');
+const helpOverlay = $('helpOverlay');
+const closeHelpBtn = $('closeHelpBtn');
+const historyBtn = $('historyBtn');
+const historyPanel = $('historyPanel');
+const historyCloseBtn = $('historyCloseBtn');
+const saveDialog = $('saveDialog');
+const saveName = $('saveName');
+const savePreview = $('savePreview');
+const cancelSaveBtn = $('cancelSaveBtn');
+const confirmSaveBtn = $('confirmSaveBtn');
+const historyClearBtn = $('historyClearBtn');
+const historyContent = $('historyContent');
 
 // 全局变量
 let model = null;
@@ -45,12 +50,24 @@ const settings = {
 
 // 初始化应用
 async function init() {
+    console.log('正在初始化应用...');
+    
     try {
+        // 检查基本元素是否可用
+        if (!video || !canvas || !ctx) {
+            throw new Error('视频或画布元素不可用，请刷新页面重试');
+        }
+        
         // 初始化事件监听器
         setupEventListeners();
         
         console.log('正在加载COCO-SSD模型...');
         
+        // 检查TensorFlow和COCO-SSD是否可用
+        if (typeof cocoSsd === 'undefined') {
+            throw new Error('COCO-SSD模型未加载，请检查网络连接后刷新页面');
+        }
+
         // 加载模型
         model = await cocoSsd.load();
         
@@ -58,54 +75,142 @@ async function init() {
         
         // 读取本地存储的历史记录
         loadHistoryFromStorage();
+        
+        // 检查iOS设备并应用专门的修复
+        checkIOSAndApplyFix();
+        
     } catch (error) {
         console.error('初始化失败:', error);
-        alert('初始化失败: ' + error.message);
+        
+        // 显示用户友好的错误信息
+        if (cameraPlaceholder) {
+            cameraPlaceholder.innerHTML = `
+                <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-weight: bold; margin-bottom: 10px;">初始化失败</div>
+                    <div style="font-size: 14px;">${error.message}</div>
+                    <button onclick="location.reload()" style="margin-top: 10px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 5px 10px; border-radius: 4px;">刷新页面</button>
+                </div>
+            `;
+        } else {
+            alert('初始化失败: ' + error.message);
+        }
+    }
+}
+
+// 检查iOS设备并应用专门的修复
+function checkIOSAndApplyFix() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    
+    if (isIOS) {
+        console.log('检测到iOS设备，应用专门修复...');
+        
+        // 移除可能存在的多余视频元素
+        document.querySelectorAll('video').forEach((v, index) => {
+            if (v.id !== 'video') {
+                console.log('移除多余视频元素:', v);
+                v.parentNode.removeChild(v);
+            }
+        });
+        
+        if (video && canvas) {
+            // 应用iOS专用样式
+            video.style.cssText = `
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: cover !important;
+                z-index: 1 !important;
+                transform: translateZ(0) !important;
+            `;
+            
+            canvas.style.cssText = `
+                position: absolute !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                z-index: 2 !important;
+                background: transparent !important;
+                transform: translateZ(0) !important;
+            `;
+            
+            // 设置视频属性
+            video.setAttribute('playsinline', '');
+            video.setAttribute('webkit-playsinline', '');
+            video.setAttribute('muted', '');
+            video.setAttribute('autoplay', '');
+        }
     }
 }
 
 // 设置事件监听器
 function setupEventListeners() {
     // 开始按钮
-    startBtn.addEventListener('click', startDetection);
+    if (startBtn) startBtn.addEventListener('click', startDetection);
     
     // 停止按钮
-    stopBtn.addEventListener('click', stopDetection);
+    if (stopBtn) stopBtn.addEventListener('click', stopDetection);
     
     // 保存按钮
-    saveBtn.addEventListener('click', showSaveDialog);
+    if (saveBtn) saveBtn.addEventListener('click', showSaveDialog);
+    
+    // 刷新按钮
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            console.log('执行页面刷新...');
+            
+            // 停止所有活动的媒体流
+            stopAllMediaStreams();
+            
+            // 重新加载页面
+            window.location.reload();
+        });
+    }
     
     // 帮助按钮
-    helpBtn.addEventListener('click', () => {
-        helpOverlay.style.display = 'flex';
-    });
+    if (helpBtn) {
+        helpBtn.addEventListener('click', () => {
+            helpOverlay.style.display = 'flex';
+        });
+    }
     
     // 关闭帮助按钮
-    closeHelpBtn.addEventListener('click', () => {
-        helpOverlay.style.display = 'none';
-    });
+    if (closeHelpBtn) {
+        closeHelpBtn.addEventListener('click', () => {
+            helpOverlay.style.display = 'none';
+        });
+    }
     
     // 历史记录按钮
-    historyBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        historyPanel.classList.add('active');
-    });
+    if (historyBtn) {
+        historyBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (historyPanel) historyPanel.classList.add('active');
+        });
+    }
     
     // 关闭历史记录按钮
-    historyCloseBtn.addEventListener('click', () => {
-        historyPanel.classList.remove('active');
-    });
+    if (historyCloseBtn) {
+        historyCloseBtn.addEventListener('click', () => {
+            if (historyPanel) historyPanel.classList.remove('active');
+        });
+    }
     
     // 取消保存按钮
-    cancelSaveBtn.addEventListener('click', () => {
-        saveDialog.classList.remove('active');
-    });
+    if (cancelSaveBtn) {
+        cancelSaveBtn.addEventListener('click', () => {
+            if (saveDialog) saveDialog.classList.remove('active');
+        });
+    }
     
     // 确认保存按钮
-    confirmSaveBtn.addEventListener('click', saveDetectionResult);
+    if (confirmSaveBtn) confirmSaveBtn.addEventListener('click', saveDetectionResult);
     
     // 清空历史记录按钮
-    historyClearBtn.addEventListener('click', clearHistory);
+    if (historyClearBtn) historyClearBtn.addEventListener('click', clearHistory);
 }
 
 // 强制更新视频容器样式
@@ -174,50 +279,120 @@ function forceUpdateVideoStyles() {
     canvas.height = video.videoHeight || cameraContainer.offsetHeight;
 }
 
+// 停止所有活动的媒体流
+function stopAllMediaStreams() {
+    // 停止所有视频轨道
+    const allVideos = document.querySelectorAll('video');
+    allVideos.forEach(videoElement => {
+        if (videoElement.srcObject) {
+            const tracks = videoElement.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            videoElement.srcObject = null;
+        }
+    });
+    
+    // 如果有全局stream也停止它
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+    }
+}
+
 // 开始检测
 async function startDetection() {
     if (isStreaming) return;
+    if (!video || !canvas || !ctx) {
+        console.error('视频或画布元素不可用');
+        alert('视频或画布元素不可用，请刷新页面重试');
+        return;
+    }
     
     try {
+        // 先停止所有现有的媒体流
+        stopAllMediaStreams();
+        
+        // 移除可能存在的额外视频元素
+        document.querySelectorAll('video').forEach(v => {
+            if (v.id !== 'video' && v.parentNode) {
+                v.parentNode.removeChild(v);
+            }
+        });
+        
         // 重置预测结果
-        predictions.innerHTML = '';
+        if (predictions) {
+            predictions.innerHTML = '';
+        }
         currentPredictions = [];
         
-        // 请求摄像头权限
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: 'environment', // 优先使用后置摄像头
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            },
-            audio: false
-        });
+        console.log('请求摄像头权限...');
+        
+        // 请求摄像头权限，使用try/catch捕获可能的错误
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment', // 优先使用后置摄像头
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            });
+        } catch (cameraError) {
+            console.error('摄像头访问失败:', cameraError);
+            
+            // 尝试使用更宽松的配置
+            try {
+                console.log('尝试使用更宽松的摄像头配置...');
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+            } catch (fallbackError) {
+                throw new Error('无法访问摄像头: ' + fallbackError.message);
+            }
+        }
+        
+        // 确保视频元素存在且可用
+        if (!video) {
+            throw new Error('视频元素不可用');
+        }
         
         // 清理可能的旧连接
         if (video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
+            const tracks = video.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
         }
+        
+        // 设置视频属性
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+        video.setAttribute('muted', '');
+        video.setAttribute('autoplay', '');
         
         // 设置视频源
         video.srcObject = stream;
         
         // 等待视频元数据加载
         video.onloadedmetadata = () => {
+            console.log('视频元数据已加载, 分辨率:', video.videoWidth, 'x', video.videoHeight);
+            
             // 设置画布尺寸与视频一致
-            videoWidth = video.videoWidth;
-            videoHeight = video.videoHeight;
+            videoWidth = video.videoWidth || 640;
+            videoHeight = video.videoHeight || 480;
             
             canvas.width = videoWidth;
             canvas.height = videoHeight;
             
             // 显示视频，隐藏占位符
-            cameraPlaceholder.style.display = 'none';
+            if (cameraPlaceholder) {
+                cameraPlaceholder.style.display = 'none';
+            }
             
             // 更新状态
             isStreaming = true;
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-            saveBtn.disabled = false;
+            if (startBtn) startBtn.disabled = true;
+            if (stopBtn) stopBtn.disabled = false;
+            if (saveBtn) saveBtn.disabled = false;
             
             // 开始检测循环
             detectionInterval = setInterval(detectObjects, settings.detectionInterval);
@@ -229,15 +404,37 @@ async function startDetection() {
             setTimeout(forceUpdateVideoStyles, 2000);
         };
         
+        // 添加错误处理
+        video.onerror = (e) => {
+            console.error('视频加载错误:', e);
+            throw new Error('视频加载失败');
+        };
+        
         // 开始播放视频
-        await video.play();
+        try {
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.error('视频播放失败:', error);
+                    alert('视频播放失败: ' + error.message);
+                });
+            }
+        } catch (playError) {
+            console.error('视频播放异常:', playError);
+        }
         
         // 3秒后再次强制更新样式 - 双重保险
         setTimeout(forceUpdateVideoStyles, 3000);
         
     } catch (error) {
-        console.error('无法访问摄像头:', error);
+        console.error('启动检测失败:', error);
         alert('无法访问摄像头: ' + error.message);
+        
+        // 恢复状态
+        isStreaming = false;
+        if (startBtn) startBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
+        if (saveBtn) saveBtn.disabled = true;
     }
 }
 
@@ -798,4 +995,51 @@ document.head.insertAdjacentHTML('beforeend', `
 `);
 
 // 启动应用
-window.addEventListener('DOMContentLoaded', init); 
+window.addEventListener('DOMContentLoaded', init);
+
+// 页面加载后清理多余的视频元素
+window.addEventListener('load', function() {
+    console.log('页面完全加载，执行清理操作...');
+    
+    // 执行清理操作
+    setTimeout(function() {
+        cleanupVideoElements();
+    }, 500);
+    
+    // 每隔3秒检查并清理一次
+    setInterval(cleanupVideoElements, 3000);
+});
+
+// 清理多余的视频元素
+function cleanupVideoElements() {
+    console.log('检查视频元素...');
+    
+    // 获取所有视频元素
+    const videos = document.querySelectorAll('video');
+    
+    // 如果有多于一个视频元素，移除多余的
+    if (videos.length > 1) {
+        console.log('发现多余视频元素，数量:', videos.length);
+        
+        // 只保留id为'video'的元素
+        videos.forEach(function(videoElement) {
+            if (videoElement.id !== 'video' && videoElement.parentNode) {
+                console.log('移除多余视频元素:', videoElement);
+                videoElement.parentNode.removeChild(videoElement);
+            }
+        });
+    }
+    
+    // 确保id为'video'的视频元素存在于正确的容器中
+    const mainVideo = document.getElementById('video');
+    const cameraContainer = document.getElementById('cameraContainer');
+    
+    if (mainVideo && cameraContainer) {
+        // 检查视频元素是否在正确的容器中
+        if (mainVideo.parentNode !== cameraContainer) {
+            console.log('视频元素不在正确容器中，重新放置');
+            mainVideo.parentNode.removeChild(mainVideo);
+            cameraContainer.insertBefore(mainVideo, cameraContainer.firstChild);
+        }
+    }
+} 

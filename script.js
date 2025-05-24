@@ -140,6 +140,16 @@ async function init() {
         
         // 检查iOS设备并应用专门的修复
         checkIOSAndApplyFix();
+
+        // If init completes successfully without critical model loading error,
+        // reset cameraPlaceholder to default "Click to start" state.
+        if (cameraPlaceholder && !cameraPlaceholder.innerHTML.includes('AI Model Failed to Load')) {
+            cameraPlaceholder.innerHTML = `
+                <div class="loading-spinner"></div>
+                <div class="loading-text">点击开始识别</div>
+            `;
+            cameraPlaceholder.style.display = 'flex'; // Ensure it's visible
+        }
         
     } catch (error) { // This is the main try...catch for the init function
         console.error('初始化失败:', error);

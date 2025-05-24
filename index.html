@@ -47,9 +47,9 @@
     
     <link rel="stylesheet" href="style.css">
     <!-- TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0" integrity="sha384-tKqp45ZVPAtzQOjartDyenVHQMV/Mp9zTRqYIYkiwh9vS6wRF61HOts9ppbTyxMA" crossorigin="anonymous"></script>
     <!-- COCO-SSD 模型 -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2" integrity="sha384-/Ze86je+L/XYNre5spsZmGKuRlc3l7SmjraCSxWNzYE5QqbnXPrhMz81bDA4fcox" crossorigin="anonymous"></script>
     
     <!-- iOS特殊处理 -->
     <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
@@ -164,7 +164,7 @@
     </div>
 
     <footer>
-        <p>&copy; 2025 恒泰视觉 AI 识别系统 | <a href="https://github.com/yourusername/hengtai-vision" target="_blank" rel="noopener">GitHub</a></p>
+        <p>&copy; 2024 恒泰视觉 AI 识别系统 | <a href="https://github.com/yourusername/hengtai-vision" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
 
     <script src="script.js"></script>
@@ -233,18 +233,7 @@
         // 添加全局错误处理
         window.addEventListener('error', function(event) {
             console.error('全局错误:', event.message);
-            if (event.message && event.message.includes('tfjs') || event.message.includes('tensorflow')) {
-                // 显示友好的错误信息
-                const loadingIndicator = document.querySelector('.loading-indicator') || document.getElementById('cameraPlaceholder');
-                if (loadingIndicator) {
-                    loadingIndicator.innerHTML = `
-                        <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
-                            <div style="font-weight: bold; margin-bottom: 10px;">模型加载失败</div>
-                            <div style="font-size: 14px;">请尝试使用Safari浏览器或刷新页面重试</div>
-                        </div>
-                    `;
-                }
-            }
+            // The specific 'tfjs'/'tensorflow' check and cameraPlaceholder update is removed.
         });
     </script>
 

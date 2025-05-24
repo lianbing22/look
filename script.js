@@ -3,28 +3,28 @@ function $(id) {
     return document.getElementById(id);
 }
 
-// DOM元素 - 使用安全的方式获取元素
-const video = $('video');
-const canvas = $('canvas');
-const ctx = canvas && canvas.getContext('2d');
-const startBtn = $('startBtn');
-const stopBtn = $('stopBtn');
-const saveBtn = $('saveBtn');
-const cameraPlaceholder = $('cameraPlaceholder');
-const predictions = $('predictions');
-const helpBtn = $('helpBtn');
-const helpOverlay = $('helpOverlay');
-const closeHelpBtn = $('closeHelpBtn');
-const historyBtn = $('historyBtn');
-const historyPanel = $('historyPanel');
-const historyCloseBtn = $('historyCloseBtn');
-const saveDialog = $('saveDialog');
-const saveName = $('saveName');
-const savePreview = $('savePreview');
-const cancelSaveBtn = $('cancelSaveBtn');
-const confirmSaveBtn = $('confirmSaveBtn');
-const historyClearBtn = $('historyClearBtn');
-const historyContent = $('historyContent');
+// DOM元素 - Declare globally, assign in init()
+let video;
+let canvas;
+let ctx;
+let startBtn;
+let stopBtn;
+let saveBtn;
+let cameraPlaceholder;
+let predictions;
+let helpBtn;
+let helpOverlay;
+let closeHelpBtn;
+let historyBtn;
+let historyPanel;
+let historyCloseBtn;
+let saveDialog;
+let saveName;
+let savePreview;
+let cancelSaveBtn;
+let confirmSaveBtn;
+let historyClearBtn;
+let historyContent;
 
 // 全局变量
 let model = null;
@@ -50,10 +50,35 @@ const settings = {
 
 // 初始化应用
 async function init() {
+    // Assign DOM elements now that DOM is loaded
+    video = $('video');
+    canvas = $('canvas');
+    ctx = canvas && canvas.getContext('2d');
+    startBtn = $('startBtn');
+    stopBtn = $('stopBtn');
+    saveBtn = $('saveBtn');
+    cameraPlaceholder = $('cameraPlaceholder');
+    predictions = $('predictions');
+    helpBtn = $('helpBtn');
+    helpOverlay = $('helpOverlay');
+    closeHelpBtn = $('closeHelpBtn');
+    historyBtn = $('historyBtn');
+    historyPanel = $('historyPanel');
+    historyCloseBtn = $('historyCloseBtn');
+    saveDialog = $('saveDialog');
+    saveName = $('saveName');
+    savePreview = $('savePreview');
+    cancelSaveBtn = $('cancelSaveBtn');
+    confirmSaveBtn = $('confirmSaveBtn');
+    historyClearBtn = $('historyClearBtn');
+    historyContent = $('historyContent');
+
     console.log('正在初始化应用...');
     
     try {
         // 检查基本元素是否可用
+        // Note: The check for video, canvas, ctx availability is now more critical here,
+        // as they are assigned just above.
         if (!video || !canvas || !ctx) {
             throw new Error('视频或画布元素不可用，请刷新页面重试');
         }
@@ -903,6 +928,10 @@ function saveDetectionResult() {
 
 // 从本地存储加载历史记录
 function loadHistoryFromStorage() {
+    if (!historyContent) {
+        console.error("Error: historyContent element not found in loadHistoryFromStorage(). Cannot display history.");
+        return;
+    }
     // 获取历史记录
     const history = JSON.parse(localStorage.getItem('detectionHistory') || '[]');
     
@@ -1012,12 +1041,16 @@ function deleteHistoryItem(id) {
 
 // 清空历史记录
 function clearHistory() {
+    if (!historyContent) { // Safeguard, though loadHistoryFromStorage will also check
+        console.error("Error: historyContent element not found in clearHistory(). Cannot clear history.");
+        return;
+    }
     if (confirm('确认清空所有历史记录？此操作不可恢复。')) {
         // 清空本地存储中的历史记录
         localStorage.removeItem('detectionHistory');
         
         // 更新历史面板
-        loadHistoryFromStorage();
+        loadHistoryFromStorage(); // This will now also have the null check
     }
 }
 

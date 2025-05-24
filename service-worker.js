@@ -1,5 +1,5 @@
 // 缓存名称和版本
-const CACHE_NAME = 'hengtai-vision-cache-v3';
+const CACHE_NAME = 'hengtai-vision-cache-v4';
 
 // 需要缓存的资源列表 - 增加更多资源
 const CACHE_URLS = [
@@ -35,12 +35,15 @@ self.addEventListener('install', event => {
         // 尝试缓存所有资源，但忽略失败的请求
         return Promise.allSettled(
           CACHE_URLS.map(url => 
-            cache.add(url).catch(error => {
-              console.warn(`无法缓存资源: ${url}`, error);
+            cache.add(url).catch(err => { // Changed error to err to avoid conflict
+              console.warn(`Failed to cache URL: ${url}`, err);
               return Promise.resolve(); // 继续处理其他资源
             })
           )
         );
+      })
+      .catch(error => { // Catch for caches.open()
+        console.error('Failed to open cache:', error);
       })
       .then(() => {
         console.log('资源已缓存');
@@ -63,10 +66,14 @@ self.addEventListener('activate', event => {
         cacheNames.map(cacheName => {
           if (cacheName !== CACHE_NAME) {
             console.log('删除旧缓存:', cacheName);
-            return caches.delete(cacheName);
+            return caches.delete(cacheName).catch(err => { // Changed error to err
+              console.warn(`Failed to delete old cache: ${cacheName}`, err);
+            });
           }
         })
       );
+    }).catch(error => { // Catch for caches.keys()
+      console.error('Failed to retrieve cache keys:', error);
     }).then(() => {
       console.log('现在使用的是最新缓存');
       return self.clients.claim();
@@ -92,12 +99,18 @@ self.addEventListener('fetch', event => {
       event.request.url.includes('coco-ssd')) {
     event.respondWith(
       caches.match(event.request)
+        .catch(error => {
+          console.error('Cache match failed for request:', event.request.url, error);
+        })
         .then(cachedResponse => {
           if (cachedResponse) {
             return cachedResponse;
           }
           
           return fetch(event.request)
+            .catch(error => { // Catch for network fetch
+              console.warn('Network fetch failed for request:', event.request.url, error);
+            })
             .then(response => {
               // 确保响应有效
               if (!response || response.status !== 200 || response.type !== 'basic') {
@@ -109,7 +122,9 @@ self.addEventListener('fetch', event => {
               
               caches.open(CACHE_NAME)
                 .then(cache => {
-                  cache.put(event.request, responseToCache);
+                  cache.put(event.request, responseToCache).catch(error => { // Catch for cache.put()
+                    console.warn('Failed to put response in cache for:', event.request.url, error);
+                  });
                   console.log('已缓存模型文件:', event.request.url);
                 });
               
@@ -126,8 +141,10 @@ self.addEventListener('fetch', event => {
       event.request.headers.get('Accept')?.includes('image/')) {
     event.respondWith(
       fetch(event.request).catch(error => {
-        console.error('网络请求失败:', error);
-        return caches.match(event.request);
+        console.warn('Network fetch failed for request:', event.request.url, error); // Enhanced logging
+        return caches.match(event.request).catch(matchError => { // Added catch for caches.match
+           console.error('Cache match failed for request:', event.request.url, matchError);
+        });
       })
     );
     return;
@@ -136,6 +153,9 @@ self.addEventListener('fetch', event => {
   // 对于其他资源，使用缓存优先策略
   event.respondWith(
     caches.match(event.request)
+      .catch(error => { // Catch for caches.match()
+          console.error('Cache match failed for request:', event.request.url, error);
+      })
       .then(response => {
         // 如果找到缓存的响应，则返回缓存
         if (response) {
@@ -145,12 +165,17 @@ self.addEventListener('fetch', event => {
               event.request.url.endsWith('.js')) {
             
             fetch(event.request)
+              .catch(error => { // Catch for network fetch
+                 console.warn('Network fetch failed for request:', event.request.url, error);
+              })
               .then(networkResponse => {
                 if (networkResponse && networkResponse.status === 200) {
                   const responseToCache = networkResponse.clone();
                   caches.open(CACHE_NAME)
                     .then(cache => {
-                      cache.put(event.request, responseToCache);
+                      cache.put(event.request, responseToCache).catch(err => { // Catch for cache.put()
+                         console.warn('Failed to put response in cache for:', event.request.url, err);
+                      });
                       console.log('后台更新缓存:', event.request.url);
                     });
                 }
@@ -165,6 +190,11 @@ self.addEventListener('fetch', event => {
         
         // 否则发起网络请求
         return fetch(event.request)
+          .catch(error => { // Catch for network fetch
+            console.warn('Network fetch failed for request:', event.request.url, error);
+            // Rethrow the error to be caught by the final catch block
+            throw error;
+          })
           .then(networkResponse => {
             // 如果获得了有效响应，将其缓存
             if (networkResponse && networkResponse.status === 200) {
@@ -172,7 +202,9 @@ self.addEventListener('fetch', event => {
               
               caches.open(CACHE_NAME)
                 .then(cache => {
-                  cache.put(event.request, responseToCache);
+                  cache.put(event.request, responseToCache).catch(err => { // Catch for cache.put()
+                     console.warn('Failed to put response in cache for:', event.request.url, err);
+                  });
                 });
             }
             
@@ -183,7 +215,9 @@ self.addEventListener('fetch', event => {
             
             // 如果是HTML请求，返回离线页面
             if (event.request.headers.get('Accept')?.includes('text/html')) {
-              return caches.match('./index.html');
+              return caches.match('./index.html').catch(matchError => { // Added catch for caches.match
+                console.error('Cache match failed for request:', './index.html', matchError);
+              });
             }
             
             return new Response('网络连接不可用，请稍后再试。', {

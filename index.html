@@ -47,9 +47,9 @@
     
     <link rel="stylesheet" href="style.css">
     <!-- TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0" integrity="sha384-tKqp45ZVPAtzQOjartDyenVHQMV/Mp9zTRqYIYkiwh9vS6wRF61HOts9ppbTyxMA" crossorigin="anonymous"></script>
     <!-- COCO-SSD 模型 -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2" integrity="sha384-/Ze86je+L/XYNre5spsZmGKuRlc3l7SmjraCSxWNzYE5QqbnXPrhMz81bDA4fcox" crossorigin="anonymous"></script>
     
     <!-- iOS特殊处理 -->
     <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
@@ -59,11 +59,6 @@
     <!-- 阻止浏览器对模型的CORS检查 -->
     <meta http-equiv="Access-Control-Allow-Origin" content="*">
     <meta http-equiv="Access-Control-Allow-Headers" content="*">
-
-    <!-- 额外的iOS渲染优化 -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
     <!-- 强制使用最新渲染引擎 -->
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -169,7 +164,7 @@
     </div>
 
     <footer>
-        <p>&copy; 2025 恒泰视觉 AI 识别系统 | <a href="https://github.com/yourusername/hengtai-vision" target="_blank" rel="noopener">GitHub</a></p>
+        <p>&copy; 2024 恒泰视觉 AI 识别系统 | <a href="https://github.com/yourusername/hengtai-vision" target="_blank" rel="noopener">GitHub</a></p>
     </footer>
 
     <script src="script.js"></script>
@@ -182,10 +177,10 @@
                 // 先尝试注销旧的Service Worker
                 navigator.serviceWorker.getRegistrations().then(registrations => {
                     for(let registration of registrations) {
-                        registration.unregister().then(success => {
-                            console.log('Service Worker 注销成功:', success);
+                        registration.unregister().then(registration => {
+                            console.log('Successfully unregistered Service Worker:', registration);
                         }).catch(error => {
-                            console.log('Service Worker 注销失败:', error);
+                            console.error('Failed to unregister Service Worker:', error);
                         });
                     }
                     
@@ -193,10 +188,10 @@
                     setTimeout(() => {
                         navigator.serviceWorker.register('service-worker.js')
                             .then(registration => {
-                                console.log('Service Worker 注册成功:', registration.scope);
+                                console.log('Service Worker registered successfully with scope:', registration.scope);
                             })
                             .catch(error => {
-                                console.log('Service Worker 注册失败:', error);
+                                console.error('Service Worker registration failed:', error);
                             });
                     }, 1000);
                 });
@@ -238,18 +233,7 @@
         // 添加全局错误处理
         window.addEventListener('error', function(event) {
             console.error('全局错误:', event.message);
-            if (event.message && event.message.includes('tfjs') || event.message.includes('tensorflow')) {
-                // 显示友好的错误信息
-                const loadingIndicator = document.querySelector('.loading-indicator') || document.getElementById('cameraPlaceholder');
-                if (loadingIndicator) {
-                    loadingIndicator.innerHTML = `
-                        <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
-                            <div style="font-weight: bold; margin-bottom: 10px;">模型加载失败</div>
-                            <div style="font-size: 14px;">请尝试使用Safari浏览器或刷新页面重试</div>
-                        </div>
-                    `;
-                }
-            }
+            // The specific 'tfjs'/'tensorflow' check and cameraPlaceholder update is removed.
         });
     </script>
 
@@ -265,6 +249,11 @@
     (function() {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const isChrome = /CriOS/.test(navigator.userAgent);
+        // Check if the suggestion has already been dismissed
+        if (localStorage.getItem('safariSuggestionDismissed') === 'true') {
+            return; // Don't show the suggestion if it has been dismissed
+        }
+
         if (isIOS && isChrome) {
             // iOS上的Chrome浏览器
             setTimeout(() => {
@@ -285,26 +274,6 @@
             }, 2000);
         }
     })();
-    </script>
-
-    <!-- 简化版iOS视频修复 -->
-    <script>
-    // 页面加载完成后执行视频元素检查和修复
-    window.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM加载完成，开始检查视频元素...');
-        
-        // 1. 删除可能存在的重复视频元素
-        setTimeout(function() {
-            document.querySelectorAll('video').forEach(function(vid, index) {
-                if (vid.id !== 'video') {
-                    console.log('删除额外视频元素', index);
-                    vid.parentNode.removeChild(vid);
-                }
-            });
-            
-            console.log('视频元素检查完成');
-        }, 100);
-    });
     </script>
 </body>
 </html> 

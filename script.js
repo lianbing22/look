@@ -3,28 +3,28 @@ function $(id) {
     return document.getElementById(id);
 }
 
-// DOM元素 - 使用安全的方式获取元素
-const video = $('video');
-const canvas = $('canvas');
-const ctx = canvas && canvas.getContext('2d');
-const startBtn = $('startBtn');
-const stopBtn = $('stopBtn');
-const saveBtn = $('saveBtn');
-const cameraPlaceholder = $('cameraPlaceholder');
-const predictions = $('predictions');
-const helpBtn = $('helpBtn');
-const helpOverlay = $('helpOverlay');
-const closeHelpBtn = $('closeHelpBtn');
-const historyBtn = $('historyBtn');
-const historyPanel = $('historyPanel');
-const historyCloseBtn = $('historyCloseBtn');
-const saveDialog = $('saveDialog');
-const saveName = $('saveName');
-const savePreview = $('savePreview');
-const cancelSaveBtn = $('cancelSaveBtn');
-const confirmSaveBtn = $('confirmSaveBtn');
-const historyClearBtn = $('historyClearBtn');
-const historyContent = $('historyContent');
+// DOM元素 - Declare globally, assign in init()
+let video;
+let canvas;
+let ctx;
+let startBtn;
+let stopBtn;
+let saveBtn;
+let cameraPlaceholder;
+let predictions;
+let helpBtn;
+let helpOverlay;
+let closeHelpBtn;
+let historyBtn;
+let historyPanel;
+let historyCloseBtn;
+let saveDialog;
+let saveName;
+let savePreview;
+let cancelSaveBtn;
+let confirmSaveBtn;
+let historyClearBtn;
+let historyContent;
 
 // 全局变量
 let model = null;
@@ -50,10 +50,35 @@ const settings = {
 
 // 初始化应用
 async function init() {
+    // Assign DOM elements now that DOM is loaded
+    video = $('video');
+    canvas = $('canvas');
+    ctx = canvas && canvas.getContext('2d');
+    startBtn = $('startBtn');
+    stopBtn = $('stopBtn');
+    saveBtn = $('saveBtn');
+    cameraPlaceholder = $('cameraPlaceholder');
+    predictions = $('predictions');
+    helpBtn = $('helpBtn');
+    helpOverlay = $('helpOverlay');
+    closeHelpBtn = $('closeHelpBtn');
+    historyBtn = $('historyBtn');
+    historyPanel = $('historyPanel');
+    historyCloseBtn = $('historyCloseBtn');
+    saveDialog = $('saveDialog');
+    saveName = $('saveName');
+    savePreview = $('savePreview');
+    cancelSaveBtn = $('cancelSaveBtn');
+    confirmSaveBtn = $('confirmSaveBtn');
+    historyClearBtn = $('historyClearBtn');
+    historyContent = $('historyContent');
+
     console.log('正在初始化应用...');
     
     try {
         // 检查基本元素是否可用
+        // Note: The check for video, canvas, ctx availability is now more critical here,
+        // as they are assigned just above.
         if (!video || !canvas || !ctx) {
             throw new Error('视频或画布元素不可用，请刷新页面重试');
         }
@@ -69,30 +94,84 @@ async function init() {
         }
 
         // 加载模型
-        model = await cocoSsd.load();
-        
-        console.log('模型加载成功!');
+        let modelLoaded = false;
+        for (let i = 0; i < 3; i++) {
+            try {
+                console.log(`Attempting to load COCO-SSD model... Attempt #${i + 1}`);
+                model = await cocoSsd.load();
+                modelLoaded = true;
+                console.log('模型加载成功!');
+                break; // Exit loop if successful
+            } catch (modelError) {
+                console.error(`Model loading attempt #${i + 1} failed:`, modelError);
+                if (i < 2) { // If not the last attempt
+                    console.log('Waiting 1 second before retrying...');
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } else {
+                    // All retries failed
+                    console.error('COCO-SSD model loading failed after 3 attempts.');
+                    if (cameraPlaceholder) {
+                        cameraPlaceholder.innerHTML = `
+                            <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-weight: bold; margin-bottom: 10px;">AI Model Failed to Load</div>
+                                <div style="font-size: 14px;">Could not load the object detection model after multiple attempts. Please check your internet connection and try refreshing the page. If you are on an iOS device, using the Safari browser might help.</div>
+                                <button onclick="location.reload()" style="margin-top: 10px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 5px 10px; border-radius: 4px;">Refresh Page</button>
+                            </div>
+                        `;
+                    } else {
+                        alert('AI Model Failed to Load. Please check your internet connection and try refreshing the page. If you are on an iOS device, using the Safari browser might help.');
+                    }
+                    // Re-throw the error to be caught by the outer try...catch or to stop further execution if not caught.
+                    // Or simply return to prevent further execution within init if model loading is critical.
+                    return; // Stop further initialization if model fails to load
+                }
+            }
+        }
+
+        if (!modelLoaded) {
+            // This case should ideally be handled by the error thrown in the loop's final attempt,
+            // but as a fallback, ensure we don't proceed.
+            console.error('Model was not loaded. Stopping initialization.');
+            return;
+        }
         
         // 读取本地存储的历史记录
         loadHistoryFromStorage();
         
         // 检查iOS设备并应用专门的修复
         checkIOSAndApplyFix();
+
+        // If init completes successfully without critical model loading error,
+        // reset cameraPlaceholder to default "Click to start" state.
+        if (cameraPlaceholder && !cameraPlaceholder.innerHTML.includes('AI Model Failed to Load')) {
+            cameraPlaceholder.innerHTML = `
+                <div class="loading-spinner"></div>
+                <div class="loading-text">点击开始识别</div>
+            `;
+            cameraPlaceholder.style.display = 'flex'; // Ensure it's visible
+        }
         
-    } catch (error) {
+    } catch (error) { // This is the main try...catch for the init function
         console.error('初始化失败:', error);
         
         // 显示用户友好的错误信息
+        // This block handles general errors caught during the init process,
+        // excluding the specific "AI Model Failed to Load" which is handled earlier.
         if (cameraPlaceholder) {
-            cameraPlaceholder.innerHTML = `
-                <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
-                    <div style="font-weight: bold; margin-bottom: 10px;">初始化失败</div>
-                    <div style="font-size: 14px;">${error.message}</div>
-                    <button onclick="location.reload()" style="margin-top: 10px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 5px 10px; border-radius: 4px;">刷新页面</button>
-                </div>
-            `;
+            if (!cameraPlaceholder.innerHTML.includes('AI Model Failed to Load')) { // Avoid overwriting specific model load error
+                cameraPlaceholder.innerHTML = `
+                    <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center; max-width: 90%; margin: auto;">
+                        <div style="font-weight: bold; margin-bottom: 10px; font-size: 1.1em;">Application Error</div>
+                        <div style="font-size: 0.9em; margin-bottom: 15px;">An unexpected error occurred during application startup:</div>
+                        <div style="font-size: 0.8em; background-color: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-bottom:15px; word-break: break-word;">${error.message}</div>
+                        <button onclick="location.reload()" style="margin-top: 10px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer;">Refresh Page</button>
+                    </div>
+                `;
+            }
+            cameraPlaceholder.style.display = 'flex'; // Ensure it's visible
         } else {
-            alert('初始化失败: ' + error.message);
+            // Fallback if cameraPlaceholder itself is not available for some reason
+            alert('Critical Application Error: ' + error.message);
         }
     }
 }
@@ -325,29 +404,33 @@ async function startDetection() {
         currentPredictions = [];
         
         console.log('请求摄像头权限...');
+        const initialConstraints = {
+            video: {
+                facingMode: 'environment', // 优先使用后置摄像头
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            },
+            audio: false
+        };
+        console.log('Attempting getUserMedia with initial constraints:', JSON.stringify(initialConstraints));
         
-        // 请求摄像头权限，使用try/catch捕获可能的错误
         try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment', // 优先使用后置摄像头
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: false
-            });
+            stream = await navigator.mediaDevices.getUserMedia(initialConstraints);
+            console.log('Initial getUserMedia attempt succeeded.');
         } catch (cameraError) {
-            console.error('摄像头访问失败:', cameraError);
-            
-            // 尝试使用更宽松的配置
+            console.error('Initial getUserMedia attempt failed:', cameraError.name, cameraError.message);
+            console.log('Attempting fallback getUserMedia with simpler constraints...');
+            const fallbackConstraints = {
+                video: true,
+                audio: false
+            };
+            console.log('Attempting getUserMedia with fallback constraints:', JSON.stringify(fallbackConstraints));
             try {
-                console.log('尝试使用更宽松的摄像头配置...');
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: true,
-                    audio: false
-                });
+                stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+                console.log('Fallback getUserMedia attempt succeeded.');
             } catch (fallbackError) {
-                throw new Error('无法访问摄像头: ' + fallbackError.message);
+                console.error('Fallback getUserMedia attempt failed:', fallbackError.name, fallbackError.message);
+                throw fallbackError; // Rethrow to be caught by the outer catch, preserving error.name
             }
         }
         
@@ -427,8 +510,39 @@ async function startDetection() {
         setTimeout(forceUpdateVideoStyles, 3000);
         
     } catch (error) {
-        console.error('启动检测失败:', error);
-        alert('无法访问摄像头: ' + error.message);
+        console.error('启动检测失败:', error.name, error.message);
+        let userMessage = `无法访问摄像头: ${error.message}`;
+
+        switch (error.name) {
+            case 'NotFoundError':
+            case 'DevicesNotFoundError': // Some browsers might use this
+                userMessage = "未找到摄像头。请确保摄像头已连接并启用。";
+                break;
+            case 'NotAllowedError': // Permission denied
+            case 'PermissionDeniedError': // Firefox uses this
+                userMessage = "摄像头访问被拒绝。请在浏览器设置中允许摄像头权限，然后刷新页面。";
+                break;
+            case 'NotReadableError': // Hardware error or in use
+            case 'TrackStartError': // Another variant
+                userMessage = "摄像头正在使用中或访问时发生错误。请尝试关闭其他可能正在使用摄像头的应用程序，或重启浏览器。";
+                break;
+            case 'OverconstrainedError': // Constraints not met
+            case 'ConstraintNotSatisfiedError': // Another variant
+                userMessage = "摄像头不支持所请求的设置。正在尝试使用默认设置。"; // This message might appear if the fallback also fails for constraint reasons.
+                break;
+            case 'SecurityError': // Insecure context (HTTP)
+                userMessage = "摄像头访问不安全。请确保页面通过 HTTPS 加载。";
+                break;
+            case 'TypeError': // Constraints object malformed (developer error, but good to catch)
+                userMessage = "请求摄像头权限时发生技术错误。请联系技术支持。";
+                console.error("TypeError during getUserMedia. Constraints might be malformed:", error.message)
+                break;
+            default:
+                // Keep the generic message for other errors
+                console.log(`Unhandled camera error type: ${error.name}`);
+        }
+        
+        alert(userMessage);
         
         // 恢复状态
         isStreaming = false;
@@ -824,6 +938,10 @@ function saveDetectionResult() {
 
 // 从本地存储加载历史记录
 function loadHistoryFromStorage() {
+    if (!historyContent) {
+        console.error("Error: historyContent element not found in loadHistoryFromStorage(). Cannot display history.");
+        return;
+    }
     // 获取历史记录
     const history = JSON.parse(localStorage.getItem('detectionHistory') || '[]');
     
@@ -933,12 +1051,16 @@ function deleteHistoryItem(id) {
 
 // 清空历史记录
 function clearHistory() {
+    if (!historyContent) { // Safeguard, though loadHistoryFromStorage will also check
+        console.error("Error: historyContent element not found in clearHistory(). Cannot clear history.");
+        return;
+    }
     if (confirm('确认清空所有历史记录？此操作不可恢复。')) {
         // 清空本地存储中的历史记录
         localStorage.removeItem('detectionHistory');
         
         // 更新历史面板
-        loadHistoryFromStorage();
+        loadHistoryFromStorage(); // This will now also have the null check
     }
 }
 

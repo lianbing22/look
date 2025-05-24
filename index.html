@@ -96,6 +96,7 @@
             <div class="camera-container" id="cameraContainer">
                 <video id="video" autoplay playsinline muted></video>
                 <canvas id="canvas"></canvas>
+                <img id="uploadedImageDisplay" src="" alt="Uploaded Image" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; z-index: 0;"/>
                 <div id="cameraPlaceholder" class="camera-placeholder">
                     <div class="loading-spinner"></div>
                     <div class="loading-text">点击开始识别</div>
@@ -104,6 +105,8 @@
             <div class="controls">
                 <button id="startBtn">开始识别</button>
                 <button id="stopBtn" disabled>停止识别</button>
+                <button id="uploadImageTriggerBtn">上传图片识别</button> 
+                <input type="file" id="uploadImageInput" accept="image/*" style="display: none;">
                 <button id="saveBtn" disabled>保存结果</button>
                 <button id="refreshBtn" title="遇到问题时点击刷新页面"><i>🔄</i> 刷新</button>
             </div>

@@ -1,22 +1,26 @@
 // DOM 元素
-const settingsForm = document.getElementById('settingsForm');
-const thresholdInput = document.getElementById('detectionThreshold');
-const thresholdValue = document.getElementById('thresholdValue');
-const maxDetectionsInput = document.getElementById('maxDetections');
-const showBoundingBoxInput = document.getElementById('showBoundingBox');
-const updateIntervalInput = document.getElementById('updateInterval');
-const saveBtn = document.getElementById('saveBtn');
-const resetBtn = document.getElementById('resetBtn');
-const browserInfoEl = document.getElementById('browserInfo');
-const deviceInfoEl = document.getElementById('deviceInfo');
-const cameraSupportEl = document.getElementById('cameraSupport');
-const tensorflowStatusEl = document.getElementById('tensorflowStatus');
+let settingsForm;
+let thresholdInput;
+let thresholdValue;
+let maxDetectionsInput;
+// let showBoundingBoxInput; // Removed
+let showBoxesAdminInput, showLabelsAdminInput, showScoresAdminInput; // Added
+let updateIntervalInput;
+let saveBtn;
+let resetBtn;
+let browserInfoEl;
+let deviceInfoEl;
+let cameraSupportEl;
+let tensorflowStatusEl;
 
 // 默认设置
 const defaultSettings = {
     detectionThreshold: 0.5,
     maxDetections: 10,
-    showBoundingBox: true,
+    // showBoundingBox: true, // Removed
+    showBoxes: true, // Added
+    showLabels: true, // Added
+    showScores: true, // Added
     updateInterval: 100
 };
 
@@ -85,6 +89,23 @@ function isHighEndMobile() {
 
 // 初始化
 function init() {
+    // Assign DOM elements here
+    settingsForm = document.getElementById('settingsForm');
+    thresholdInput = document.getElementById('detectionThreshold');
+    thresholdValue = document.getElementById('thresholdValue');
+    maxDetectionsInput = document.getElementById('maxDetections');
+    // showBoundingBoxInput = document.getElementById('showBoundingBox'); // Removed
+    showBoxesAdminInput = document.getElementById('showBoxesAdmin'); // Added
+    showLabelsAdminInput = document.getElementById('showLabelsAdmin'); // Added
+    showScoresAdminInput = document.getElementById('showScoresAdmin'); // Added
+    updateIntervalInput = document.getElementById('updateInterval');
+    saveBtn = document.getElementById('saveBtn');
+    resetBtn = document.getElementById('resetBtn');
+    browserInfoEl = document.getElementById('browserInfo');
+    deviceInfoEl = document.getElementById('deviceInfo');
+    cameraSupportEl = document.getElementById('cameraSupport');
+    tensorflowStatusEl = document.getElementById('tensorflowStatus');
+
     // 加载设置
     loadSettings();
     
@@ -131,7 +152,10 @@ function updateFormValues() {
     thresholdInput.value = currentSettings.detectionThreshold;
     thresholdValue.textContent = currentSettings.detectionThreshold;
     maxDetectionsInput.value = currentSettings.maxDetections;
-    showBoundingBoxInput.checked = currentSettings.showBoundingBox;
+    // showBoundingBoxInput.checked = currentSettings.showBoundingBox; // Removed
+    if(showBoxesAdminInput) showBoxesAdminInput.checked = currentSettings.showBoxes; // Added
+    if(showLabelsAdminInput) showLabelsAdminInput.checked = currentSettings.showLabels; // Added
+    if(showScoresAdminInput) showScoresAdminInput.checked = currentSettings.showScores; // Added
     updateIntervalInput.value = currentSettings.updateInterval;
 }
 
@@ -150,7 +174,9 @@ function saveSettings() {
                 <div><strong>设置已保存:</strong></div>
                 <div>• 识别阈值: ${currentSettings.detectionThreshold}</div>
                 <div>• 最大识别数量: ${currentSettings.maxDetections}</div>
-                <div>• 显示边界框: ${currentSettings.showBoundingBox ? '是' : '否'}</div>
+                <div>• 显示边界框: ${currentSettings.showBoxes ? '是' : '否'}</div>
+                <div>• 显示标签: ${currentSettings.showLabels ? '是' : '否'}</div>
+                <div>• 显示置信度: ${currentSettings.showScores ? '是' : '否'}</div>
                 <div>• 更新间隔: ${currentSettings.updateInterval}ms</div>
             </div>
         `;
@@ -221,11 +247,14 @@ function validateSettingsObject(settings) {
         validatedSettings.maxDetections = maxDetections;
     }
     
-    // 验证显示边界框设置
-    if ('showBoundingBox' in settings) {
-        // 确保是布尔值
-        validatedSettings.showBoundingBox = Boolean(settings.showBoundingBox);
-    }
+    // 验证显示边界框设置 - Replaced
+    // if ('showBoundingBox' in settings) {
+    //     // 确保是布尔值
+    //     validatedSettings.showBoundingBox = Boolean(settings.showBoundingBox);
+    // }
+    if ('showBoxes' in settings) { validatedSettings.showBoxes = Boolean(settings.showBoxes); } // Added
+    if ('showLabels' in settings) { validatedSettings.showLabels = Boolean(settings.showLabels); } // Added
+    if ('showScores' in settings) { validatedSettings.showScores = Boolean(settings.showScores); } // Added
     
     // 验证更新间隔
     if ('updateInterval' in settings) {
@@ -328,7 +357,10 @@ function setupEventListeners() {
         // 收集表单数据
         currentSettings.detectionThreshold = parseFloat(thresholdInput.value);
         currentSettings.maxDetections = parseInt(maxDetectionsInput.value);
-        currentSettings.showBoundingBox = showBoundingBoxInput.checked;
+        // currentSettings.showBoundingBox = showBoundingBoxInput.checked; // Removed
+        if(showBoxesAdminInput) currentSettings.showBoxes = showBoxesAdminInput.checked; // Added
+        if(showLabelsAdminInput) currentSettings.showLabels = showLabelsAdminInput.checked; // Added
+        if(showScoresAdminInput) currentSettings.showScores = showScoresAdminInput.checked; // Added
         currentSettings.updateInterval = parseInt(updateIntervalInput.value);
         
         // 保存设置

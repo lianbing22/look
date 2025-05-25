@@ -24,7 +24,7 @@ const savePreview = $('savePreview');
 const cancelSaveBtn = $('cancelSaveBtn');
 const confirmSaveBtn = $('confirmSaveBtn');
 const historyClearBtn = $('historyClearBtn');
-const historyContent = $('historyContent');
+let historyContent;
 
 // 全局变量
 let model = null;
@@ -54,8 +54,20 @@ async function init() {
     
     try {
         // 检查基本元素是否可用
-        if (!video || !canvas || !ctx) {
+        if (!video || !canvas || !ctx) { // These are already checked which is good
             throw new Error('视频或画布元素不可用，请刷新页面重试');
+        }
+        
+        // Assign historyContent HERE
+        historyContent = $('historyContent'); 
+        // Ensure historyContent is not null before proceeding if it's critical
+        if (!historyContent) {
+            throw new Error('历史记录内容元素 (#historyContent) 未找到，请检查HTML结构。');
+        }
+        
+        // Ensure cameraPlaceholder is not null before proceeding
+        if (!cameraPlaceholder) {
+            throw new Error('摄像头占位符元素 (#cameraPlaceholder) 未找到，请检查HTML结构。');
         }
         
         // 初始化事件监听器
@@ -385,7 +397,17 @@ async function startDetection() {
             
             // 显示视频，隐藏占位符
             if (cameraPlaceholder) {
-                cameraPlaceholder.style.display = 'none';
+                console.log('[DEBUG] Hiding cameraPlaceholder with opacity/pointer-events method.');
+                cameraPlaceholder.classList.add('hidden'); // Keep for display:none as a base
+                cameraPlaceholder.style.setProperty('opacity', '0', 'important');
+                cameraPlaceholder.style.setProperty('pointer-events', 'none', 'important');
+                // The element is already position: absolute from its CSS class.
+                // Moving it with 'left' is an option if opacity/pointer-events isn't enough.
+                // cameraPlaceholder.style.setProperty('left', '-99999px', 'important'); 
+
+                // Debugging logs
+                const styles = window.getComputedStyle(cameraPlaceholder);
+                console.log(`[DEBUG] cameraPlaceholder post-hide attempt: display=${styles.display}, opacity=${styles.opacity}, pointer-events=${styles.pointerEvents}, left=${styles.left}`);
             }
             
             // 更新状态
@@ -458,7 +480,22 @@ function stopDetection() {
     video.srcObject = null;
     
     // 显示占位符
-    cameraPlaceholder.style.display = 'flex';
+    if (cameraPlaceholder) {
+        console.log('[DEBUG] Showing cameraPlaceholder by reverting opacity/pointer-events method.');
+        // Remove properties set for hiding
+        cameraPlaceholder.style.removeProperty('opacity');
+        cameraPlaceholder.style.removeProperty('pointer-events');
+        // cameraPlaceholder.style.removeProperty('left'); // If 'left' was used to hide
+
+        // Remove the 'hidden' class to restore CSS-defined display (e.g., display: flex)
+        cameraPlaceholder.classList.remove('hidden'); 
+
+        // Debugging logs
+        const styles = window.getComputedStyle(cameraPlaceholder);
+        console.log(`[DEBUG] cameraPlaceholder post-show attempt: display=${styles.display}, opacity=${styles.opacity}, pointer-events=${styles.pointerEvents}, left=${styles.left}`);
+    } else {
+        console.error('[DEBUG] cameraPlaceholder is null in stopDetection');
+    }
     
     // 清空画布
     ctx.clearRect(0, 0, canvas.width, canvas.height);

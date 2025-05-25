@@ -179,6 +179,11 @@ button {
     box-shadow: 0 0 10px rgba(0, 112, 243, 0.3);
     position: relative;
     overflow: hidden;
+    display: inline-flex; /* Added */
+    align-items: center; /* Added */
+    justify-content: center; /* Added */
+    text-align: center; /* Added for robustness */
+    gap: 0.3em; /* Added for spacing between icon and text */
 }
 
 button::before {
@@ -334,15 +339,16 @@ footer {
     }
     
     .camera-container {
-        max-height: 55vh !important;
         width: 100% !important;
+        aspect-ratio: 16/9 !important; /* This will determine height based on width */
+        /* max-height: 55vh !important; */ /* REMOVED to avoid conflict */
         margin: 0 auto 0.3rem !important;
         border-width: 1px !important;
         border-style: solid !important;
         border-color: rgba(255, 255, 255, 0.1) !important;
         overflow: hidden !important;
         position: relative !important;
-        display: block !important;
+        display: block !important; 
     }
     
     .controls {
@@ -354,11 +360,22 @@ footer {
     
     button {
         font-size: 13px;
-        padding: 0.35rem 0.7rem;
-        flex: 1;
-        max-width: 30%;
+        padding: 0.4rem 1rem; /* Increased horizontal padding */
+        min-height: 2.5em; /* Minimum height to accommodate text comfortably */
+        flex: 1; 
         margin: 0 0.15rem;
-        white-space: nowrap;
+        display: inline-flex; 
+        align-items: center; 
+        justify-content: center;
+        text-align: center; /* Explicitly center text */
+        gap: 0.3em; /* Added for spacing between icon and text */
+    }
+
+    #refreshBtn i { /* Style for the icon if needed */
+        margin: 0; /* Remove any default/previously set margins */
+        padding: 0; /* Remove any default padding */
+        display: inline-block; /* Stabilize layout contribution */
+        /* margin-right: 4px; /* REMOVED THIS LINE if present */ 
     }
     
     .results {
@@ -425,8 +442,12 @@ footer {
     }
     
     button {
-        padding: 0.3rem 0.5rem;
+        padding: 0.35rem 0.8rem; /* Increased horizontal padding */
         font-size: 12px;
+        min-height: 2.5em; /* Minimum height */
+        text-align: center; /* Explicitly center text */
+        gap: 0.3em; /* Added for spacing between icon and text */
+        /* display: inline-flex, align-items, justify-content are inherited if not overridden by more specific rules for this breakpoint */
     }
     
     .prediction-item {
@@ -1337,4 +1358,8 @@ footer {
         font-size: 16px !important;
         text-align: center !important;
     }
-} 
+}
+
+.hidden {
+    display: none !important;
+}

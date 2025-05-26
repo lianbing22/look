@@ -632,7 +632,8 @@ async function startDetection() {
             
             // 显示视频，隐藏占位符
             if (cameraPlaceholder) {
-                cameraPlaceholder.style.display = 'none';
+                console.log('onloadedmetadata: Attempting to hide cameraPlaceholder with !important');
+                cameraPlaceholder.style.cssText = 'display: none !important;'; 
             }
             
             // 更新状态
@@ -769,8 +770,13 @@ async function detectObjects() {
 
         // 如果检测正在进行且占位符仍然可见，则强制隐藏它
         if (cameraPlaceholder && cameraPlaceholder.style.display !== 'none') {
-            console.log('DetectObjects: Forcing cameraPlaceholder to hide as detection is active.');
+            // 首先尝试常规隐藏
             cameraPlaceholder.style.display = 'none';
+            // 如果仍然无效（某些浏览器或极端情况下），则使用!important再次尝试
+            if (cameraPlaceholder.style.display !== 'none') {
+                 console.log('DetectObjects: Forcing cameraPlaceholder to hide with !important as detection is active and normal hide failed.');
+                 cameraPlaceholder.style.cssText = 'display: none !important;'; 
+            }
         }
         
     } catch (error) {

@@ -213,6 +213,7 @@ function checkIOSAndApplyFix() {
                 object-fit: cover !important;
                 z-index: 1 !important;
                 transform: translateZ(0) !important;
+                -webkit-transform: translateZ(0) !important;
             `;
             
             canvas.style.cssText = `
@@ -224,6 +225,7 @@ function checkIOSAndApplyFix() {
                 z-index: 2 !important;
                 background: transparent !important;
                 transform: translateZ(0) !important;
+                -webkit-transform: translateZ(0) !important;
             `;
             
             // 设置视频属性
@@ -231,6 +233,19 @@ function checkIOSAndApplyFix() {
             video.setAttribute('webkit-playsinline', '');
             video.setAttribute('muted', '');
             video.setAttribute('autoplay', '');
+            
+            // 强制重新加载视频元素
+            setTimeout(() => {
+                if (video && video.srcObject) {
+                    const currentStream = video.srcObject; // 保存当前流的引用
+                    video.srcObject = null;
+                    setTimeout(() => {
+                         if (video && currentStream) { // 确保 video 和 currentStream 仍然有效
+                            video.srcObject = currentStream;
+                         }
+                    }, 100);
+                }
+            }, 1000);
         }
     }
 }

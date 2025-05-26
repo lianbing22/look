@@ -1,5 +1,5 @@
 // 缓存名称和版本
-const CACHE_NAME = 'hengtai-vision-cache-v3';
+const CACHE_NAME = 'hengtai-vision-cache-v4';
 
 // 需要缓存的资源列表 - 增加更多资源
 const CACHE_URLS = [

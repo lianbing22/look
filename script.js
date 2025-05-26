@@ -30,6 +30,7 @@ let uploadImageInput;
 let uploadedImageDisplay;
 let themeToggleBtn; // Theme toggle button
 let currentModeIndicator; // Mode indicator element
+let sortOrderSelect; // Sort order select element
 
 // 全局变量
 let model = null;
@@ -146,6 +147,7 @@ async function init() {
     uploadedImageDisplay = $('uploadedImageDisplay');
     themeToggleBtn = $('themeToggleBtn'); // Get the theme toggle button
     currentModeIndicator = $('currentModeIndicator'); // Get mode indicator
+    sortOrderSelect = $('sortOrder'); // Get sort order select
 
     if (uploadImageTriggerBtn) {
         uploadImageTriggerBtn.disabled = true; // Disable initially
@@ -413,6 +415,11 @@ function setupEventListeners() {
     if (themeToggleBtn) {
         themeToggleBtn.addEventListener('click', toggleTheme);
     }
+
+    // Sort order select event listener
+    if (sortOrderSelect) {
+        sortOrderSelect.addEventListener('change', renderPredictionsList);
+    }
 }
 
 // Function to load and apply saved theme or default
@@ -479,9 +486,8 @@ async function handleImageUpload(event) {
             console.log('Detecting objects in uploaded image...');
             try {
                 const imagePredictions = await model.detect(img); // Use the in-memory image
-                currentPredictions = imagePredictions;
-                drawDetections(imagePredictions);    // Draws on the main canvas
-                updatePredictionsList(imagePredictions);
+                currentPredictions = imagePredictions.map((p, index) => ({ ...p, originalIndex: index }));
+                renderPredictionsList();
 
                 if (saveBtn) saveBtn.disabled = false;
                 if (stopBtn) {
@@ -928,7 +934,7 @@ async function detectObjects() {
             .slice(0, settings.maxDetections);
         
         // 更新当前预测结果
-        currentPredictions = filteredPredictions;
+        currentPredictions = filteredPredictions.map((p, index) => ({ ...p, originalIndex: index }));
         
         // 绘制检测结果 - 只有当有检测结果时才绘制
         if (filteredPredictions.length > 0) {
@@ -936,7 +942,7 @@ async function detectObjects() {
         }
         
         // 更新预测结果显示
-        updatePredictionsList(filteredPredictions);
+        renderPredictionsList();
 
         // 如果检测正在进行且占位符仍然可见，则强制隐藏它
         if (cameraPlaceholder && cameraPlaceholder.style.display !== 'none') {
@@ -985,7 +991,7 @@ function drawDetections(predictionsToDraw) {
         let strokeStyle = objectColor;
 
         // Check if this prediction is highlighted
-        if (i === highlightedPredictionIndex) {
+        if (prediction.originalIndex === highlightedPredictionIndex) {
             lineWidth = 4; // Make highlighted box thicker
             strokeStyle = '#00FF00'; // Bright green for highlight, or choose another distinct color
         }
@@ -1022,8 +1028,36 @@ function drawDetections(predictionsToDraw) {
     });
 }
 
+// New function to handle sorting/filtering and then rendering
+function renderPredictionsList() {
+    let predictionsToDisplay = [...currentPredictions]; // Work with a copy
+
+    if (sortOrderSelect && sortOrderSelect.value === 'confidence') {
+        predictionsToDisplay.sort((a, b) => b.score - a.score);
+    }
+    // else default order is by originalIndex, which is already preserved
+
+    // Clear canvas and draw detections (always use original currentPredictions for drawing full set if needed by drawDetections)
+    // For highlighting to work correctly, drawDetections needs the full context of currentPredictions
+    if (ctx && canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!isStreaming && uploadedImageDisplay && uploadedImageDisplay.src) {
+            const img = new Image();
+            img.onload = () => {
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                if (currentPredictions.length > 0) drawDetections(currentPredictions);
+            };
+            img.src = uploadedImageDisplay.src;
+            // Must wait for image to load before drawing list for consistency
+        } else {
+            if (currentPredictions.length > 0) drawDetections(currentPredictions);
+        }
+    }
+    updatePredictionsList(predictionsToDisplay);
+}
+
 // 更新预测结果列表
-function updatePredictionsList(predictionResults) {
+function updatePredictionsList(displayPredictions) {
     // 获取预测结果容器
     const predictionsContainer = document.getElementById('predictions');
     
@@ -1031,7 +1065,7 @@ function updatePredictionsList(predictionResults) {
     predictionsContainer.innerHTML = '';
     
     // 如果没有检测到物体
-    if (!Array.isArray(predictionResults) || predictionResults.length === 0) {
+    if (!Array.isArray(displayPredictions) || displayPredictions.length === 0) {
         const emptyItem = document.createElement('div');
         emptyItem.className = 'prediction-item';
         emptyItem.innerText = '暂无检测到的物体，请将摄像头对准物体';
@@ -1042,10 +1076,10 @@ function updatePredictionsList(predictionResults) {
     }
     
     // 创建检测结果元素
-    predictionResults.forEach((prediction, index) => {
+    displayPredictions.forEach((prediction) => { // Iterate over displayPredictions
         const item = document.createElement('div');
         item.className = 'prediction-item';
-        item.dataset.predictionId = index; // Store index for highlighting
+        item.dataset.predictionId = prediction.originalIndex; // Use originalIndex for correct highlighting
         
         // 获取分类图标
         const categoryIcon = getCategoryIcon(prediction.class);

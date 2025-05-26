@@ -1675,4 +1675,37 @@ body.light-theme .highlighted-list-item {
     background-color: rgba(0, 112, 243, 0.15) !important;
     border-left-color: var(--primary-color) !important;
     box-shadow: 0 0 10px rgba(0, 112, 243, 0.3);
+}
+
+.results-controls {
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background-color: rgba(255,255,255,0.05);
+    border-radius: 4px;
+}
+
+.results-controls label {
+    font-size: 0.9rem;
+}
+
+.results-controls select {
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-dark);
+    background-color: var(--surface-dark);
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+body.light-theme .results-controls {
+    background-color: rgba(0,0,0,0.03);
+}
+
+body.light-theme .results-controls select {
+    border-color: var(--border-light);
+    background-color: var(--surface-light);
+    color: var(--text-dark-on-light);
 } 

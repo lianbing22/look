@@ -766,6 +766,12 @@ async function detectObjects() {
         
         // 更新预测结果显示
         updatePredictionsList(filteredPredictions);
+
+        // 如果检测正在进行且占位符仍然可见，则强制隐藏它
+        if (cameraPlaceholder && cameraPlaceholder.style.display !== 'none') {
+            console.log('DetectObjects: Forcing cameraPlaceholder to hide as detection is active.');
+            cameraPlaceholder.style.display = 'none';
+        }
         
     } catch (error) {
         console.error('对象检测失败:', error);

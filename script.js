@@ -1036,34 +1036,39 @@ function stopDetection() {
 // 检测对象
 async function detectObjects() {
     if (!isStreaming || !model) return;
-    
+    const t0 = performance.now();
     try {
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas at the beginning of each detection cycle
-        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         const predictions = await model.detect(video);
-        
-        const filteredRawPredictions = predictions
-            .filter(pred => pred.score >= settings.confidenceThreshold)
-            .slice(0, settings.maxDetections);
-        
+        const filteredRawPredictions = predictions.filter(pred => pred.score >= settings.confidenceThreshold).slice(0, settings.maxDetections);
         currentPredictions = updateTrackedObjects(filteredRawPredictions);
-        
-        renderPredictionsList(); // This will call drawDetections and updatePredictionsList
-
+        renderPredictionsList();
         if (cameraPlaceholder && cameraPlaceholder.style.display !== 'none') {
-            // 首先尝试常规隐藏
             cameraPlaceholder.style.display = 'none';
-            // 如果仍然无效（某些浏览器或极端情况下），则使用!important再次尝试
-            if (cameraPlaceholder.style.display !== 'none') {
-                 console.log('DetectObjects: Forcing cameraPlaceholder to hide with !important as detection is active and normal hide failed.');
-                 cameraPlaceholder.style.cssText = 'display: none !important;'; 
-            }
+            if (cameraPlaceholder.style.display !== 'none') cameraPlaceholder.style.cssText = 'display: none !important;';
         }
-        
     } catch (error) {
         console.error('对象检测失败:', error);
-        // 再次清空画布以防止错误后的残余显示
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+    } finally {
+        const t1 = performance.now();
+        const dt = Math.round(t1 - t0);
+        detectTimeHistory.push(dt);
+        if (detectTimeHistory.length > 10) detectTimeHistory.shift();
+        const avgTime = Math.round(detectTimeHistory.reduce((a,b)=>a+b,0)/detectTimeHistory.length);
+        // 自适应调整，仅在auto模式下
+        if (performanceMode === 'auto') {
+            if (avgTime > 500 && settings.detectionInterval < 1200) {
+                settings.detectionInterval += 100;
+                if (settings.maxDetections > 3) settings.maxDetections--;
+                if (detectionInterval) { clearInterval(detectionInterval); detectionInterval = setInterval(detectObjects, settings.detectionInterval); }
+            } else if (avgTime < 200 && settings.detectionInterval > 200) {
+                settings.detectionInterval -= 50;
+                if (settings.maxDetections < 10) settings.maxDetections++;
+                if (detectionInterval) { clearInterval(detectionInterval); detectionInterval = setInterval(detectObjects, settings.detectionInterval); }
+            }
+        }
+        updatePerformanceStatusUI(avgTime);
     }
 }
 
@@ -1871,3 +1876,58 @@ window.addEventListener('DOMContentLoaded', () => {
         };
     }
 }); 
+
+// 性能自适应参数
+let detectTimeHistory = [];
+let performanceMode = 'auto'; // auto/performance/accuracy
+
+// 性能状态UI
+function updatePerformanceStatusUI(avgTime) {
+    let status = document.getElementById('performanceStatus');
+    if (!status) {
+        status = document.createElement('div');
+        status.id = 'performanceStatus';
+        status.style = 'position:fixed;right:10px;bottom:10px;z-index:9999;background:rgba(0,0,0,0.7);color:#fff;padding:6px 14px;border-radius:8px;font-size:13px;pointer-events:none;user-select:none;';
+        document.body.appendChild(status);
+    }
+    status.innerHTML = `识别间隔: ${settings.detectionInterval}ms<br>最大检测数: ${settings.maxDetections}<br>平均耗时: ${avgTime}ms<br>模式: ${performanceMode==='auto'?'自适应':performanceMode==='performance'?'性能优先':'精度优先'}`;
+}
+
+// detectObjects 内部统计耗时并自适应调整
+async function detectObjects() {
+    if (!isStreaming || !model) return;
+    const t0 = performance.now();
+    try {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const predictions = await model.detect(video);
+        const filteredRawPredictions = predictions.filter(pred => pred.score >= settings.confidenceThreshold).slice(0, settings.maxDetections);
+        currentPredictions = updateTrackedObjects(filteredRawPredictions);
+        renderPredictionsList();
+        if (cameraPlaceholder && cameraPlaceholder.style.display !== 'none') {
+            cameraPlaceholder.style.display = 'none';
+            if (cameraPlaceholder.style.display !== 'none') cameraPlaceholder.style.cssText = 'display: none !important;';
+        }
+    } catch (error) {
+        console.error('对象检测失败:', error);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    } finally {
+        const t1 = performance.now();
+        const dt = Math.round(t1 - t0);
+        detectTimeHistory.push(dt);
+        if (detectTimeHistory.length > 10) detectTimeHistory.shift();
+        const avgTime = Math.round(detectTimeHistory.reduce((a,b)=>a+b,0)/detectTimeHistory.length);
+        // 自适应调整，仅在auto模式下
+        if (performanceMode === 'auto') {
+            if (avgTime > 500 && settings.detectionInterval < 1200) {
+                settings.detectionInterval += 100;
+                if (settings.maxDetections > 3) settings.maxDetections--;
+                if (detectionInterval) { clearInterval(detectionInterval); detectionInterval = setInterval(detectObjects, settings.detectionInterval); }
+            } else if (avgTime < 200 && settings.detectionInterval > 200) {
+                settings.detectionInterval -= 50;
+                if (settings.maxDetections < 10) settings.maxDetections++;
+                if (detectionInterval) { clearInterval(detectionInterval); detectionInterval = setInterval(detectObjects, settings.detectionInterval); }
+            }
+        }
+        updatePerformanceStatusUI(avgTime);
+    }
+} 

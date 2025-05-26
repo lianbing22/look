@@ -1119,38 +1119,88 @@ function drawDetections(predictionsToDraw) {
     });
 }
 
-// New function to handle sorting/filtering and then rendering
-function renderPredictionsList() {
-    let predictionsToDisplay = [...currentPredictions]; // Work with a copy
+// 初始化类别筛选下拉框
+function initCategoryFilter() {
+    const select = document.getElementById('categoryFilter');
+    if (!select) return;
+    // COCO-SSD所有类别
+    const allClasses = [
+        'person','bicycle','car','motorcycle','airplane','bus','train','truck','boat','traffic light','fire hydrant','stop sign','parking meter','bench','bird','cat','dog','horse','sheep','cow','elephant','bear','zebra','giraffe','backpack','umbrella','handbag','tie','suitcase','frisbee','skis','snowboard','sports ball','kite','baseball bat','baseball glove','skateboard','surfboard','tennis racket','bottle','wine glass','cup','fork','knife','spoon','bowl','banana','apple','sandwich','orange','broccoli','carrot','hot dog','pizza','donut','cake','chair','couch','potted plant','bed','dining table','toilet','tv','laptop','mouse','remote','keyboard','cell phone','microwave','oven','toaster','sink','refrigerator','book','clock','vase','scissors','teddy bear','hair drier','toothbrush'
+    ];
+    select.innerHTML = '';
+    allClasses.forEach(cls => {
+        const option = document.createElement('option');
+        option.value = cls;
+        option.textContent = getChineseName(cls);
+        option.selected = true;
+        select.appendChild(option);
+    });
+}
 
+// 获取当前筛选的类别
+function getSelectedCategories() {
+    const select = document.getElementById('categoryFilter');
+    if (!select) return null;
+    return Array.from(select.selectedOptions).map(opt => opt.value);
+}
+
+// 修改 renderPredictionsList 使其只显示被选中的类别
+function renderPredictionsList() {
+    let predictionsToDisplay = [...currentPredictions];
+    // 筛选类别
+    const selectedCats = getSelectedCategories();
+    if (selectedCats && selectedCats.length > 0) {
+        predictionsToDisplay = predictionsToDisplay.filter(p => selectedCats.includes(p.class));
+    }
     if (sortOrderSelect && sortOrderSelect.value === 'confidence') {
         predictionsToDisplay.sort((a, b) => b.score - a.score);
     }
-    // else default order is by originalIndex, which is already preserved
-
-    // Clear canvas and draw detections (always use original currentPredictions for drawing full set if needed by drawDetections)
-    // For highlighting to work correctly, drawDetections needs the full context of currentPredictions
     if (ctx && canvas) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!isStreaming && uploadedImageDisplay && uploadedImageDisplay.src) {
             const img = new Image();
             img.onload = () => {
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                if (currentPredictions.length > 0) drawDetections(currentPredictions);
+                if (predictionsToDisplay.length > 0) drawDetections(predictionsToDisplay);
             };
             img.src = uploadedImageDisplay.src;
-            // Must wait for image to load before drawing list for consistency
         } else {
-            if (currentPredictions.length > 0) drawDetections(currentPredictions);
+            if (predictionsToDisplay.length > 0) drawDetections(predictionsToDisplay);
         }
     }
     updatePredictionsList(predictionsToDisplay);
 }
 
+// 页面加载时初始化类别筛选
+window.addEventListener('DOMContentLoaded', () => {
+    initCategoryFilter();
+    const select = document.getElementById('categoryFilter');
+    if (select) {
+        select.addEventListener('change', renderPredictionsList);
+    }
+});
+
 // 更新预测结果列表
 function updatePredictionsList(displayPredictions) {
     const predictionsContainer = document.getElementById('predictions');
     predictionsContainer.innerHTML = '';
+
+    // 主要类别统计
+    if (Array.isArray(displayPredictions) && displayPredictions.length > 0) {
+        // 统计类别数量
+        const categoryCount = {};
+        displayPredictions.forEach(p => {
+            const cname = getChineseName(p.class);
+            categoryCount[cname] = (categoryCount[cname] || 0) + 1;
+        });
+        // 构建统计文本
+        const statArr = Object.entries(categoryCount).map(([k, v]) => `${k}：${v}`);
+        const statDiv = document.createElement('div');
+        statDiv.className = 'predictions-category-stat';
+        statDiv.style = 'color:#10b981;font-size:0.98em;margin-bottom:0.3rem;';
+        statDiv.innerText = statArr.join('，');
+        predictionsContainer.appendChild(statDiv);
+    }
 
     // 新增：顶部显示检测到的物体数量
     if (Array.isArray(displayPredictions) && displayPredictions.length > 0) {
@@ -1215,7 +1265,7 @@ function updatePredictionsList(displayPredictions) {
                 highlightedPredictionIndex = newHighlightIndex;
                 item.classList.add('highlighted-list-item');
             }
-            // 重新绘制画面，置信度最高的和当前点击的都高亮
+            // 重新绘制画面
             if (ctx && canvas) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 if (!isStreaming && uploadedImageDisplay && uploadedImageDisplay.src) {
@@ -1229,6 +1279,8 @@ function updatePredictionsList(displayPredictions) {
                     drawDetections(currentPredictions);
                 }
             }
+            // 弹出详情
+            showPredictionDetail(prediction);
         });
         predictionsContainer.appendChild(item);
     });
@@ -1721,4 +1773,38 @@ function cleanupVideoElements() {
             cameraContainer.insertBefore(mainVideo, cameraContainer.firstChild);
         }
     }
+}
+
+function showPredictionDetail(prediction) {
+    // 关闭已存在的详情弹窗
+    const oldModal = document.getElementById('predictionDetailModal');
+    if (oldModal) oldModal.remove();
+    // 构建百科链接
+    const baiduUrl = `https://baike.baidu.com/item/${encodeURIComponent(getChineseName(prediction.class))}`;
+    const wikiUrl = `https://zh.wikipedia.org/wiki/${encodeURIComponent(getChineseName(prediction.class))}`;
+    // 构建弹窗内容
+    const modal = document.createElement('div');
+    modal.id = 'predictionDetailModal';
+    modal.className = 'history-modal';
+    modal.innerHTML = `
+        <div class="history-modal-content" style="max-width:400px;">
+            <span class="history-modal-close">&times;</span>
+            <h3>识别详情</h3>
+            <div style="margin-bottom:0.7rem;">
+                <b>类别：</b>${getChineseName(prediction.class)}<br>
+                <b>英文：</b>${prediction.class}<br>
+                <b>置信度：</b>${Math.round(prediction.score * 100)}%<br>
+                <b>ID：</b>${prediction.id !== undefined && prediction.id !== -1 ? prediction.id : '无'}<br>
+                <b>边框：</b>[${prediction.bbox.map(x => x.toFixed(0)).join(', ')}]
+            </div>
+            <div style="display:flex;gap:1rem;justify-content:center;">
+                <a href="${baiduUrl}" target="_blank" rel="noopener" style="color:#2196f3;">百度百科</a>
+                <a href="${wikiUrl}" target="_blank" rel="noopener" style="color:#10b981;">维基百科</a>
+            </div>
+        </div>
+    `;
+    // 关闭事件
+    modal.querySelector('.history-modal-close').onclick = () => document.body.removeChild(modal);
+    modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
+    document.body.appendChild(modal);
 } 

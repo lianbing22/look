@@ -119,12 +119,18 @@ nav a.active, nav a:hover {
     align-items: flex-start;
 }
 
-/* 视频容器样式 - 最简单的样式结构 */
-.camera-container {
+/* 新增摄像头+控制区包裹器布局 */
+.camera-results-wrap {
+    display: flex;
+    flex-direction: column;
     flex: 3 1 0%;
     max-width: 75%;
     min-width: 350px;
     margin: 0 auto;
+}
+
+.camera-container {
+    flex: 1 1 auto;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     overflow: hidden;
@@ -187,15 +193,16 @@ nav a.active, nav a:hover {
 }
 
 .controls {
-    padding: 0.8rem;
+    margin-top: 0.7rem;
     display: flex;
-    justify-content: center;
-    gap: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 1rem;
     background: rgba(25, 25, 35, 0.7);
     border-radius: 8px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 0.6rem 0.8rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    border: 1px solid rgba(255,255,255,0.04);
 }
 
 button {
@@ -392,7 +399,7 @@ footer {
         gap: 0.5rem;
         padding: 0.3rem;
     }
-    .camera-container {
+    .camera-results-wrap {
         max-width: 100%;
         min-width: 0;
         margin-bottom: 0.5rem;
@@ -421,8 +428,16 @@ footer {
         padding: 0.1rem;
         gap: 0.2rem;
     }
+    .camera-results-wrap {
+        max-width: 100%;
+        min-width: 0;
+    }
     .camera-container {
         aspect-ratio: 4/3;
+    }
+    .controls {
+        gap: 0.5rem;
+        padding: 0.3rem 0.4rem;
     }
 }
 

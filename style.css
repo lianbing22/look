@@ -1662,4 +1662,17 @@ body.light-theme .help-tips li {
 
 body.light-theme .tutorial-btn {
     /* Gradient looks fine */
+}
+
+/* Style for highlighted list item */
+.highlighted-list-item {
+    background-color: rgba(0, 112, 243, 0.2) !important; /* More prominent background */
+    border-left-color: var(--secondary-color) !important; /* Brighter border */
+    box-shadow: 0 0 10px rgba(0, 112, 243, 0.5); 
+}
+
+body.light-theme .highlighted-list-item {
+    background-color: rgba(0, 112, 243, 0.15) !important;
+    border-left-color: var(--primary-color) !important;
+    box-shadow: 0 0 10px rgba(0, 112, 243, 0.3);
 } 

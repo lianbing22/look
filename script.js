@@ -39,6 +39,14 @@ let detectionInterval = null;
 let currentPredictions = [];
 let videoWidth = 0;
 let videoHeight = 0;
+let highlightedPredictionIndex = -1; // For highlighting a specific prediction
+
+// Color palette for detection boxes
+const detectionColors = [
+    '#FF3838', '#FF9D38', '#FFC538', '#38FF4E', '#38FFC5', 
+    '#38AFFF', '#3855FF', '#9D38FF', '#FF38C5', '#FF3855',
+    '#00A8C6', '#AEE239', '#DD5F32', '#DAA520', '#DB7093' 
+];
 
 // 配置参数
 const settings = {
@@ -949,17 +957,42 @@ async function detectObjects() {
 }
 
 // 绘制检测结果
-function drawDetections(predictions) {
-    if (!predictions || predictions.length === 0) return;
+function drawDetections(predictionsToDraw) {
+    // Ensure predictionsToDraw is an array
+    if (!Array.isArray(predictionsToDraw)) {
+        console.error('drawDetections received non-array predictions:', predictionsToDraw);
+        return;
+    }
+    if (predictionsToDraw.length === 0 && highlightedPredictionIndex === -1) {
+        // Only clear if there are no predictions AND no specific box to highlight
+        // This prevents clearing the canvas if we just want to highlight a box from a previous frame with no new detections
+        // However, if detectObjects clears canvas first, this might be redundant.
+        // For now, let detectObjects handle initial clearing.
+        return;
+    }
     
-    // 绘制检测框和标签
-    predictions.forEach(prediction => {
+    // `detectObjects` now clears the canvas before calling `drawDetections` if new predictions exist.
+    // If we are re-drawing for highlight only, ensure canvas is cleared first if `detectObjects` isn't the caller.
+    // This situation is less likely with current flow but good for robustness.
+    // Let's assume detectObjects always clears if new predictions are processed.
+
+    predictionsToDraw.forEach((prediction, i) => {
         const [x, y, width, height] = prediction.bbox;
+        const objectColor = detectionColors[i % detectionColors.length];
         
+        // Default style
+        let lineWidth = 2;
+        let strokeStyle = objectColor;
+
+        // Check if this prediction is highlighted
+        if (i === highlightedPredictionIndex) {
+            lineWidth = 4; // Make highlighted box thicker
+            strokeStyle = '#00FF00'; // Bright green for highlight, or choose another distinct color
+        }
+
         if (settings.showBoxes) {
-            // 绘制边界框 - 使用纯色无渐变
-            ctx.strokeStyle = '#00c8ff';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = strokeStyle;
+            ctx.lineWidth = lineWidth;
             ctx.beginPath();
             ctx.rect(x, y, width, height);
             ctx.stroke();
@@ -998,18 +1031,21 @@ function updatePredictionsList(predictionResults) {
     predictionsContainer.innerHTML = '';
     
     // 如果没有检测到物体
-    if (predictionResults.length === 0) {
+    if (!Array.isArray(predictionResults) || predictionResults.length === 0) {
         const emptyItem = document.createElement('div');
         emptyItem.className = 'prediction-item';
         emptyItem.innerText = '暂无检测到的物体，请将摄像头对准物体';
         predictionsContainer.appendChild(emptyItem);
+        highlightedPredictionIndex = -1; // Reset highlight if no predictions
+        // No need to redraw here as detectObjects would have cleared the canvas
         return;
     }
     
     // 创建检测结果元素
-    predictionResults.forEach(prediction => {
+    predictionResults.forEach((prediction, index) => {
         const item = document.createElement('div');
         item.className = 'prediction-item';
+        item.dataset.predictionId = index; // Store index for highlighting
         
         // 获取分类图标
         const categoryIcon = getCategoryIcon(prediction.class);
@@ -1024,6 +1060,57 @@ function updatePredictionsList(predictionResults) {
         `;
         
         predictionsContainer.appendChild(item);
+
+        // Add click listener to list item for highlighting
+        item.addEventListener('click', () => {
+            // Remove highlight from previously highlighted list item
+            const currentlyHighlightedListItem = predictionsContainer.querySelector('.highlighted-list-item');
+            if (currentlyHighlightedListItem) {
+                currentlyHighlightedListItem.classList.remove('highlighted-list-item');
+            }
+
+            // Set new highlighted index
+            const newHighlightIndex = parseInt(item.dataset.predictionId);
+            if (highlightedPredictionIndex === newHighlightIndex) {
+                // Clicking the same item again toggles off highlight
+                highlightedPredictionIndex = -1;
+                // Redraw without highlight
+            } else {
+                highlightedPredictionIndex = newHighlightIndex;
+                item.classList.add('highlighted-list-item'); // Highlight this list item
+            }
+            
+            // Redraw detections on canvas to reflect highlight change
+            if (ctx && canvas) {
+                if (currentPredictions && currentPredictions.length > 0) {
+                    // We need to ensure the canvas is cleared before redrawing if we are not in the main detection loop
+                    // For simplicity, let's clear and redraw. If performance becomes an issue, optimize.
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                     // If in image mode, redraw the image first
+                    if (!isStreaming && uploadedImageDisplay && uploadedImageDisplay.src) {
+                        const img = new Image();
+                        img.onload = () => {
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            drawDetections(currentPredictions);
+                        };
+                        img.src = uploadedImageDisplay.src;
+                    } else if (isStreaming && video) {
+                        // If streaming, video is already on canvas implicitly via video element, 
+                        // or supposed to be. If it's not, this won't magically draw it.
+                        // drawDetections will just draw over whatever is there.
+                         drawDetections(currentPredictions);
+                    } else {
+                        // Fallback: just draw detections, assuming canvas background is okay
+                        drawDetections(currentPredictions);
+                    }
+                } else {
+                     // No current predictions, but maybe an old highlight was cleared
+                     ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            } else {
+                console.error('Canvas context or element not available for redrawing highlight.');
+            }
+        });
     });
 }
 

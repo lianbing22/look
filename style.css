@@ -64,6 +64,7 @@ header {
     position: relative;
     overflow: hidden;
     min-height: 38px;
+    z-index: 10;
 }
 
 header::before {
@@ -117,6 +118,8 @@ nav a.active, nav a:hover {
     flex-direction: row;
     gap: 1rem;
     align-items: flex-start;
+    width: 100%;
+    min-height: 0;
 }
 
 /* 新增摄像头+控制区包裹器布局 */
@@ -127,6 +130,8 @@ nav a.active, nav a:hover {
     max-width: 75%;
     min-width: 350px;
     margin: 0 auto;
+    width: 100%;
+    min-width: 0;
 }
 
 .camera-container {
@@ -137,6 +142,8 @@ nav a.active, nav a:hover {
     background-color: #000;
     aspect-ratio: 16/9;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    width: 100%;
+    min-height: 320px;
 }
 
 /* 视频元素样式 - 使用最简单的定位和尺寸设置 */
@@ -377,6 +384,8 @@ footer {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0; /* 防止footer在内容不足时收缩 */
     width: 100%; /* 确保页脚宽度正确 */
+    position: relative;
+    z-index: 10;
 }
 
 @media (min-width: 768px) {
@@ -1363,9 +1372,14 @@ footer {
 }
 
 main {
-    flex: 1 0 auto; /* 让main区域占据剩余空间 */
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
     padding: 1rem;
     max-width: 1200px;
+    width: 100%;
+    min-height: 0;
+    margin: 0 auto;
 }
 
 /* Theme toggle button style */

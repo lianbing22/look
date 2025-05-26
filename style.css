@@ -434,8 +434,9 @@ footer {
         margin: 0 0.1rem;
     }
     .container {
-        padding: 0.1rem;
+        flex-direction: column;
         gap: 0.2rem;
+        padding: 0.1rem;
     }
     .camera-results-wrap {
         max-width: 100%;
@@ -447,6 +448,55 @@ footer {
     .controls {
         gap: 0.5rem;
         padding: 0.3rem 0.4rem;
+    }
+    .results {
+        max-width: 100%;
+        min-width: 0;
+        width: 100%;
+        margin-top: 1.2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border-radius: 10px;
+        padding: 0.7rem 0.3rem;
+    }
+    .prediction-item {
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        background: rgba(255,255,255,0.03);
+    }
+    .history-panel {
+        width: 100vw !important;
+        right: -100vw;
+        max-width: 100vw;
+        min-width: 0;
+        top: 0;
+        height: 100vh;
+        border-radius: 0;
+        padding: 1.2rem 0.5rem 2.5rem 0.5rem;
+        z-index: 2000;
+        background: rgba(15, 23, 42, 0.98);
+        box-shadow: none;
+        transition: right 0.3s ease;
+    }
+    .history-panel.active {
+        right: 0;
+    }
+    .history-content {
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    .history-header {
+        padding-bottom: 0.5rem;
+    }
+    .history-item {
+        border-radius: 8px;
+        margin-bottom: 0.7rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .history-modal-content {
+        width: 98vw;
+        max-width: 98vw;
+        padding: 0.7rem;
     }
 }
 

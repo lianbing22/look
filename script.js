@@ -1075,32 +1075,18 @@ function drawDetections(predictionsToDraw) {
         return;
     }
     if (predictionsToDraw.length === 0 && highlightedPredictionIndex === -1) {
-        // Only clear if there are no predictions AND no specific box to highlight
-        // This prevents clearing the canvas if we just want to highlight a box from a previous frame with no new detections
-        // However, if detectObjects clears canvas first, this might be redundant.
-        // For now, let detectObjects handle initial clearing.
         return;
     }
-    
-    // `detectObjects` now clears the canvas before calling `drawDetections` if new predictions exist.
-    // If we are re-drawing for highlight only, ensure canvas is cleared first if `detectObjects` isn't the caller.
-    // This situation is less likely with current flow but good for robustness.
-    // Let's assume detectObjects always clears if new predictions are processed.
 
     predictionsToDraw.forEach((prediction, i) => {
         const [x, y, width, height] = prediction.bbox;
-        // Use color from the prediction object, which is now stable due to tracking
         const objectColor = prediction.color || detectionColors[prediction.originalIndex % detectionColors.length]; 
-        
         let lineWidth = 2;
         let strokeStyle = objectColor;
-
-        // Highlight based on originalIndex, which is preserved
         if (prediction.originalIndex === highlightedPredictionIndex) {
             lineWidth = 4; 
             strokeStyle = '#00FF00'; 
         }
-
         if (settings.showBoxes) {
             ctx.strokeStyle = strokeStyle;
             ctx.lineWidth = lineWidth;
@@ -1108,28 +1094,27 @@ function drawDetections(predictionsToDraw) {
             ctx.rect(x, y, width, height);
             ctx.stroke();
         }
-        
         if (settings.showLabels) {
-            // Prepare标签文本
             const label = getChineseName(prediction.class);
             const score = settings.showScores ? ` ${Math.round(prediction.score * 100)}%` : '';
             const trackIdText = settings.trackingEnabled && prediction.id !== -1 ? ` [ID: ${prediction.id}]` : '';
             const text = label + score + trackIdText;
-            
-            // 设置文本样式
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             ctx.font = '14px Arial, sans-serif';
-            
-            // 测量文本宽度
             const textWidth = ctx.measureText(text).width;
             const textHeight = 20;
-            
-            // 绘制标签背景
-            ctx.fillRect(x, y - textHeight, textWidth + 10, textHeight);
-            
-            // 绘制标签文本
+            let labelY = y - textHeight;
+            // 如果标签超出画面顶部，则绘制在框下方
+            if (labelY < 0) labelY = y + height + 2;
+            // 如果标签下方又超出画面底部，则回到框上方
+            if (labelY + textHeight > canvas.height) labelY = Math.max(0, y - textHeight);
+            // 如果标签右侧超出画面，则左移
+            let labelX = x;
+            if (labelX + textWidth + 10 > canvas.width) labelX = canvas.width - textWidth - 10;
+            if (labelX < 0) labelX = 0;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(labelX, labelY, textWidth + 10, textHeight);
             ctx.fillStyle = '#ffffff';
-            ctx.fillText(text, x + 5, y - 5);
+            ctx.fillText(text, labelX + 5, labelY + textHeight - 5);
         }
     });
 }
@@ -1165,30 +1150,44 @@ function renderPredictionsList() {
 // 更新预测结果列表
 function updatePredictionsList(displayPredictions) {
     const predictionsContainer = document.getElementById('predictions');
-    
-    // 清空之前的结果
     predictionsContainer.innerHTML = '';
-    
+
+    // 新增：顶部显示检测到的物体数量
+    if (Array.isArray(displayPredictions) && displayPredictions.length > 0) {
+        const countDiv = document.createElement('div');
+        countDiv.className = 'predictions-count';
+        countDiv.style = 'font-weight:bold;margin-bottom:0.6rem;color:#00c8ff;';
+        countDiv.innerText = `检测到 ${displayPredictions.length} 个物体`;
+        predictionsContainer.appendChild(countDiv);
+    }
+
     // 如果没有检测到物体
     if (!Array.isArray(displayPredictions) || displayPredictions.length === 0) {
         const emptyItem = document.createElement('div');
         emptyItem.className = 'prediction-item';
         emptyItem.innerText = '暂无检测到的物体，请将摄像头对准物体';
         predictionsContainer.appendChild(emptyItem);
-        highlightedPredictionIndex = -1; // Reset highlight if no predictions
-        // No need to redraw here as detectObjects would have cleared the canvas
+        highlightedPredictionIndex = -1;
         return;
     }
-    
+
+    // 找到置信度最高的物体
+    let maxScore = -1;
+    let maxScoreIndex = -1;
+    displayPredictions.forEach((p, idx) => {
+        if (p.score > maxScore) {
+            maxScore = p.score;
+            maxScoreIndex = p.originalIndex;
+        }
+    });
+
     // 创建检测结果元素
     displayPredictions.forEach((prediction) => { 
         const item = document.createElement('div');
         item.className = 'prediction-item';
         item.dataset.predictionId = prediction.originalIndex; 
-        
         const categoryIcon = getCategoryIcon(prediction.class);
         const trackIdText = settings.trackingEnabled && prediction.id !== -1 ? `<span class="prediction-track-id">ID: ${prediction.id}</span>` : '';
-        
         item.innerHTML = `
             <div class="category-icon">${categoryIcon}</div>
             <div class="prediction-details">
@@ -1196,62 +1195,60 @@ function updatePredictionsList(displayPredictions) {
                 <div class="prediction-score">置信度: ${Math.round(prediction.score * 100)}%</div>
             </div>
         `;
-        
-        // Highlight this list item if its originalIndex matches highlightedPredictionIndex
+        // 高亮置信度最高的物体
+        if (prediction.originalIndex === maxScoreIndex) {
+            item.classList.add('highlighted-list-item');
+        }
+        // 高亮当前点击的物体
         if (prediction.originalIndex === highlightedPredictionIndex) {
             item.classList.add('highlighted-list-item');
         }
-
         item.addEventListener('click', () => {
-            // Remove highlight from previously highlighted list item
             const currentlyHighlightedListItem = predictionsContainer.querySelector('.highlighted-list-item');
             if (currentlyHighlightedListItem) {
                 currentlyHighlightedListItem.classList.remove('highlighted-list-item');
             }
-
-            // Set new highlighted index
             const newHighlightIndex = parseInt(item.dataset.predictionId);
             if (highlightedPredictionIndex === newHighlightIndex) {
-                // Clicking the same item again toggles off highlight
                 highlightedPredictionIndex = -1;
-                // Redraw without highlight
             } else {
                 highlightedPredictionIndex = newHighlightIndex;
-                item.classList.add('highlighted-list-item'); // Highlight this list item
+                item.classList.add('highlighted-list-item');
             }
-            
-            // Redraw detections on canvas to reflect highlight change
+            // 重新绘制画面，置信度最高的和当前点击的都高亮
             if (ctx && canvas) {
-                if (currentPredictions && currentPredictions.length > 0) {
-                    // We need to ensure the canvas is cleared before redrawing if we are not in the main detection loop
-                    // For simplicity, let's clear and redraw. If performance becomes an issue, optimize.
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                     // If in image mode, redraw the image first
-                    if (!isStreaming && uploadedImageDisplay && uploadedImageDisplay.src) {
-                        const img = new Image();
-                        img.onload = () => {
-                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                            drawDetections(currentPredictions);
-                        };
-                        img.src = uploadedImageDisplay.src;
-                    } else if (isStreaming && video) {
-                        // If streaming, video is already on canvas implicitly via video element, 
-                        // or supposed to be. If it's not, this won't magically draw it.
-                        // drawDetections will just draw over whatever is there.
-                         drawDetections(currentPredictions);
-                    } else {
-                        // Fallback: just draw detections, assuming canvas background is okay
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (!isStreaming && uploadedImageDisplay && uploadedImageDisplay.src) {
+                    const img = new Image();
+                    img.onload = () => {
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                         drawDetections(currentPredictions);
-                    }
+                    };
+                    img.src = uploadedImageDisplay.src;
                 } else {
-                     // No current predictions, but maybe an old highlight was cleared
-                     ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    drawDetections(currentPredictions);
                 }
-            } else {
-                console.error('Canvas context or element not available for redrawing highlight.');
             }
         });
+        predictionsContainer.appendChild(item);
     });
+    // 默认高亮置信度最高的物体（画面高亮）
+    if (highlightedPredictionIndex === -1 && maxScoreIndex !== -1) {
+        highlightedPredictionIndex = maxScoreIndex;
+        if (ctx && canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!isStreaming && uploadedImageDisplay && uploadedImageDisplay.src) {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    drawDetections(currentPredictions);
+                };
+                img.src = uploadedImageDisplay.src;
+            } else {
+                drawDetections(currentPredictions);
+            }
+        }
+    }
 }
 
 // 获取对象类别图标

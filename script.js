@@ -104,10 +104,14 @@ function loadSettingsFromStorage() {
 // 初始化应用
 async function init() {
     // Assign DOM elements here
+    console.log('Assigning DOM elements...');
     video = $('video');
     canvas = $('canvas');
     if (canvas) {
+        console.log('Canvas found, getting context...');
         ctx = canvas.getContext('2d');
+    } else {
+        console.error('Canvas element not found!');
     }
     startBtn = $('startBtn');
     stopBtn = $('stopBtn');
@@ -135,42 +139,69 @@ async function init() {
         uploadImageTriggerBtn.disabled = true; // Disable initially
     }
 
+    console.log('Loading settings from storage...');
     loadSettingsFromStorage(); // Load settings from localStorage
+    console.log('Settings loaded.');
 
     console.log('正在初始化应用...');
     
     try {
         // 检查基本元素是否可用
-        if (!video || !canvas || !ctx) { // ctx is now assigned above, this check remains valid
-            throw new Error('视频或画布元素不可用，请刷新页面重试');
+        if (!video) {
+            console.error('Video element is null!');
+            throw new Error('视频核心元素不可用，请刷新页面重试 (video null)');
         }
+        if (!canvas) {
+            console.error('Canvas element is null!');
+            throw new Error('画布核心元素不可用，请刷新页面重试 (canvas null)');
+        }
+        if (!ctx) {
+            console.error('Canvas context (ctx) is null!');
+            throw new Error('画布上下文不可用，请刷新页面重试 (ctx null)');
+        }
+        console.log('Core elements (video, canvas, ctx) checked.');
         
         // 初始化事件监听器
+        console.log('Setting up event listeners...');
         setupEventListeners();
+        console.log('Event listeners set up.');
         
         console.log('正在加载COCO-SSD模型...');
+        if (cameraPlaceholder) {
+            cameraPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">正在加载 AI 模型...</div>';
+        }
         
         // 检查TensorFlow和COCO-SSD是否可用
         if (typeof cocoSsd === 'undefined') {
-            throw new Error('COCO-SSD模型未加载，请检查网络连接后刷新页面');
+            console.error('cocoSsd is undefined!');
+            throw new Error('COCO-SSD模型库未加载，请检查网络连接或浏览器控制台。');
         }
+        console.log('cocoSsd library found.');
 
         // 加载模型
         model = await cocoSsd.load();
-        
-        console.log('模型加载成功!');
+        console.log('COCO-SSD模型加载成功!');
+        if (cameraPlaceholder) { // Clear loading message
+            cameraPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">点击开始识别</div>';
+        }
 
         if (startBtn) startBtn.disabled = false; // Enable start button after model loads
         if (uploadImageTriggerBtn) uploadImageTriggerBtn.disabled = false; // Enable upload button after model loads
+        console.log('Start and Upload buttons enabled.');
         
         // 读取本地存储的历史记录
+        console.log('Loading history from storage...');
         loadHistoryFromStorage();
+        console.log('History loaded.');
         
         // 检查iOS设备并应用专门的修复
+        console.log('Checking for iOS and applying fixes...');
         checkIOSAndApplyFix();
+        console.log('iOS check and fix applied.');
+        console.log('应用初始化完成。');
         
     } catch (error) {
-        console.error('初始化失败:', error);
+        console.error('初始化失败 (Init function): ', error.name, error.message, error.stack);
         
         // 显示用户友好的错误信息
         if (cameraPlaceholder) {
@@ -628,23 +659,43 @@ async function startDetection() {
         
         // 开始播放视频
         try {
+            console.log('Attempting to play video...');
             const playPromise = video.play();
             if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    console.error('视频播放失败:', error);
-                    alert('视频播放失败: ' + error.message);
+                playPromise.then(_ => {
+                    console.log('Video playback started successfully.');
+                }).catch(error => {
+                    console.error('视频播放失败 (playPromise.catch): ', error.name, error.message, error.stack);
+                    alert('视频播放失败: ' + error.message + '。请确保已授予摄像头权限，并尝试刷新页面。');
+                    if (cameraPlaceholder) {
+                        cameraPlaceholder.innerHTML = `<div style="color: red; padding: 10px;">视频播放启动失败 (${error.name}: ${error.message})。请检查摄像头权限并刷新。</div>`;
+                    }
+                    // 可能需要重置UI状态
+                    isStreaming = false;
+                    if (stream) stream.getTracks().forEach(track => track.stop()); // 确保停止流
+                    stream = null;
+                    if (startBtn) startBtn.disabled = false;
+                    if (stopBtn) stopBtn.disabled = true;
+                    if (cameraPlaceholder && video.style.display !== 'none') cameraPlaceholder.style.display = 'flex'; // Show placeholder if video was meant to be visible
                 });
             }
         } catch (playError) {
-            console.error('视频播放异常:', playError);
+            console.error('视频播放调用异常 (try-catch playError): ', playError.name, playError.message, playError.stack);
+            alert('视频播放遇到问题: ' + playError.message + '。请尝试刷新页面。');
+            if (cameraPlaceholder) {
+                cameraPlaceholder.innerHTML = `<div style="color: red; padding: 10px;">视频播放遇到异常 (${playError.name}: ${playError.message})。请刷新。</div>`;
+            }
         }
         
         // 3秒后再次强制更新样式 - 双重保险
         setTimeout(forceUpdateVideoStyles, 3000);
         
     } catch (error) {
-        console.error('启动检测失败:', error);
-        alert('无法访问摄像头: ' + error.message);
+        console.error('启动检测失败 (startDetection function):', error.name, error.message, error.stack);
+        alert('无法访问摄像头或启动检测: ' + error.message + '。请检查权限并刷新。');
+        if (cameraPlaceholder) {
+             cameraPlaceholder.innerHTML = `<div style="color: red; padding: 10px;">无法启动检测 (${error.name}: ${error.message})。请检查摄像头权限并刷新。</div>`;
+        }
         
         // 恢复状态
         isStreaming = false;

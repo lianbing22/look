@@ -338,6 +338,21 @@ body.light-theme #currentModeIndicator {
     color: rgba(255, 255, 255, 0.7);
 }
 
+.prediction-track-id {
+    font-size: 0.8em;
+    color: var(--secondary-color);
+    margin-left: 5px;
+    font-weight: normal;
+}
+
+body.light-theme .prediction-score {
+    color: #495057; /* Darker gray for scores on light theme */
+}
+
+body.light-theme .prediction-track-id {
+    color: var(--primary-color);
+}
+
 footer {
     text-align: center;
     padding: 1rem;

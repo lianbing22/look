@@ -42,7 +42,13 @@ let videoWidth = 0;
 let videoHeight = 0;
 let highlightedPredictionIndex = -1; // For highlighting a specific prediction
 
-// Color palette for detection boxes
+// Tracking variables
+let trackedObjects = [];
+let nextTrackId = 0;
+const MAX_FRAMES_TO_DISAPPEAR = 20; // Number of frames an object can be lost before being removed
+const MIN_IOU_FOR_MATCH = 0.3; // Minimum IoU to consider a match
+
+// Color palette for detection boxes - will be assigned per track ID
 const detectionColors = [
     '#FF3838', '#FF9D38', '#FFC538', '#38FF4E', '#38FFC5', 
     '#38AFFF', '#3855FF', '#9D38FF', '#FF38C5', '#FF3855',
@@ -59,8 +65,116 @@ const settings = {
     showScores: true,
     boxColor: '#00c8ff',
     textColor: '#ffffff',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)'
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    trackingEnabled: true // New setting to enable/disable tracking for debugging or preference
 };
+
+// Function to calculate Intersection over Union (IoU)
+function calculateIoU(box1, box2) {
+    // box format: [x, y, width, height]
+    const x1_1 = box1[0];
+    const y1_1 = box1[1];
+    const x1_2 = box1[0] + box1[2];
+    const y1_2 = box1[1] + box1[3];
+
+    const x2_1 = box2[0];
+    const y2_1 = box2[1];
+    const x2_2 = box2[0] + box2[2];
+    const y2_2 = box2[1] + box2[3];
+
+    // Calculate the (x, y)-coordinates of the intersection rectangle
+    const x_left = Math.max(x1_1, x2_1);
+    const y_top = Math.max(y1_1, y2_1);
+    const x_right = Math.min(x1_2, x2_2);
+    const y_bottom = Math.min(y1_2, y2_2);
+
+    if (x_right < x_left || y_bottom < y_top) {
+        return 0.0; // No intersection
+    }
+
+    const intersectionArea = (x_right - x_left) * (y_bottom - y_top);
+    const box1Area = box1[2] * box1[3];
+    const box2Area = box2[2] * box2[3];
+    const unionArea = box1Area + box2Area - intersectionArea;
+
+    return intersectionArea / unionArea;
+}
+
+// Function to update tracked objects based on new detections
+function updateTrackedObjects(newDetections) {
+    if (!settings.trackingEnabled) {
+        // If tracking is disabled, just add originalIndex and pass through
+        return newDetections.map((det, index) => ({
+            ...det,
+            id: -1, // No track ID
+            color: detectionColors[index % detectionColors.length], // Assign color based on order
+            originalIndex: index
+        }));
+    }
+
+    const updatedPredictions = [];
+    const matchedTrackedObjectIndices = new Set();
+
+    // Increment frame count for all existing tracked objects or remove if too old
+    trackedObjects = trackedObjects.filter(obj => {
+        obj.framesSinceLastSeen++;
+        return obj.framesSinceLastSeen < MAX_FRAMES_TO_DISAPPEAR;
+    });
+
+    for (let i = 0; i < newDetections.length; i++) {
+        const detection = newDetections[i];
+        let bestMatch = null;
+
+        for (let j = 0; j < trackedObjects.length; j++) {
+            if (matchedTrackedObjectIndices.has(j)) continue; // Already matched this tracked object
+
+            const trackedObj = trackedObjects[j];
+            if (detection.class === trackedObj.class) {
+                const iou = calculateIoU(detection.bbox, trackedObj.bbox);
+                if (iou >= MIN_IOU_FOR_MATCH) {
+                    if (bestMatch === null || iou > bestMatch.iou) {
+                        bestMatch = { trackedObjIndex: j, iou: iou, trackedObjectId: trackedObj.id, color: trackedObj.color };
+                    }
+                }
+            }
+        }
+
+        if (bestMatch !== null) {
+            const matchedTrackedObj = trackedObjects[bestMatch.trackedObjIndex];
+            matchedTrackedObj.bbox = detection.bbox; // Update bbox
+            matchedTrackedObj.score = detection.score; // Update score
+            matchedTrackedObj.framesSinceLastSeen = 0; // Reset counter
+            matchedTrackedObjectIndices.add(bestMatch.trackedObjIndex);
+
+            updatedPredictions.push({
+                ...detection,
+                id: matchedTrackedObj.id,
+                color: matchedTrackedObj.color,
+                originalIndex: i // Preserve original index from this frame's detections for highlighting list items
+            });
+        } else {
+            // New object
+            const newId = nextTrackId++;
+            const newColor = detectionColors[newId % detectionColors.length];
+            const newTrackedObject = {
+                id: newId,
+                class: detection.class,
+                bbox: detection.bbox,
+                score: detection.score,
+                color: newColor,
+                framesSinceLastSeen: 0
+            };
+            trackedObjects.push(newTrackedObject);
+            updatedPredictions.push({
+                ...detection,
+                id: newId,
+                color: newColor,
+                originalIndex: i
+            });
+        }
+    }
+    return updatedPredictions;
+}
 
 // Function to load settings from localStorage
 function loadSettingsFromStorage() {
@@ -485,9 +599,11 @@ async function handleImageUpload(event) {
 
             console.log('Detecting objects in uploaded image...');
             try {
-                const imagePredictions = await model.detect(img); // Use the in-memory image
-                currentPredictions = imagePredictions.map((p, index) => ({ ...p, originalIndex: index }));
-                renderPredictionsList();
+                const imageDetections = await model.detect(img); // Raw detections
+                // For static images, tracking isn't continuous, but we can use the same data structure
+                // Or simply disable tracking for single images if settings.trackingEnabled is respected by updateTrackedObjects
+                currentPredictions = updateTrackedObjects(imageDetections); // Process for consistent data structure
+                renderPredictionsList(); // This will handle drawing and updating list
 
                 if (saveBtn) saveBtn.disabled = false;
                 if (stopBtn) {
@@ -922,29 +1038,18 @@ async function detectObjects() {
     if (!isStreaming || !model) return;
     
     try {
-        // 首先完全清空画布
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas at the beginning of each detection cycle
         
-        // 执行预测
         const predictions = await model.detect(video);
         
-        // 过滤预测结果
-        const filteredPredictions = predictions
+        const filteredRawPredictions = predictions
             .filter(pred => pred.score >= settings.confidenceThreshold)
             .slice(0, settings.maxDetections);
         
-        // 更新当前预测结果
-        currentPredictions = filteredPredictions.map((p, index) => ({ ...p, originalIndex: index }));
+        currentPredictions = updateTrackedObjects(filteredRawPredictions);
         
-        // 绘制检测结果 - 只有当有检测结果时才绘制
-        if (filteredPredictions.length > 0) {
-            drawDetections(filteredPredictions);
-        }
-        
-        // 更新预测结果显示
-        renderPredictionsList();
+        renderPredictionsList(); // This will call drawDetections and updatePredictionsList
 
-        // 如果检测正在进行且占位符仍然可见，则强制隐藏它
         if (cameraPlaceholder && cameraPlaceholder.style.display !== 'none') {
             // 首先尝试常规隐藏
             cameraPlaceholder.style.display = 'none';
@@ -984,16 +1089,16 @@ function drawDetections(predictionsToDraw) {
 
     predictionsToDraw.forEach((prediction, i) => {
         const [x, y, width, height] = prediction.bbox;
-        const objectColor = detectionColors[i % detectionColors.length];
+        // Use color from the prediction object, which is now stable due to tracking
+        const objectColor = prediction.color || detectionColors[prediction.originalIndex % detectionColors.length]; 
         
-        // Default style
         let lineWidth = 2;
         let strokeStyle = objectColor;
 
-        // Check if this prediction is highlighted
+        // Highlight based on originalIndex, which is preserved
         if (prediction.originalIndex === highlightedPredictionIndex) {
-            lineWidth = 4; // Make highlighted box thicker
-            strokeStyle = '#00FF00'; // Bright green for highlight, or choose another distinct color
+            lineWidth = 4; 
+            strokeStyle = '#00FF00'; 
         }
 
         if (settings.showBoxes) {
@@ -1005,10 +1110,11 @@ function drawDetections(predictionsToDraw) {
         }
         
         if (settings.showLabels) {
-            // 准备标签文本
+            // Prepare标签文本
             const label = getChineseName(prediction.class);
             const score = settings.showScores ? ` ${Math.round(prediction.score * 100)}%` : '';
-            const text = label + score;
+            const trackIdText = settings.trackingEnabled && prediction.id !== -1 ? ` [ID: ${prediction.id}]` : '';
+            const text = label + score + trackIdText;
             
             // 设置文本样式
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
@@ -1058,7 +1164,6 @@ function renderPredictionsList() {
 
 // 更新预测结果列表
 function updatePredictionsList(displayPredictions) {
-    // 获取预测结果容器
     const predictionsContainer = document.getElementById('predictions');
     
     // 清空之前的结果
@@ -1076,26 +1181,27 @@ function updatePredictionsList(displayPredictions) {
     }
     
     // 创建检测结果元素
-    displayPredictions.forEach((prediction) => { // Iterate over displayPredictions
+    displayPredictions.forEach((prediction) => { 
         const item = document.createElement('div');
         item.className = 'prediction-item';
-        item.dataset.predictionId = prediction.originalIndex; // Use originalIndex for correct highlighting
+        item.dataset.predictionId = prediction.originalIndex; 
         
-        // 获取分类图标
         const categoryIcon = getCategoryIcon(prediction.class);
+        const trackIdText = settings.trackingEnabled && prediction.id !== -1 ? `<span class="prediction-track-id">ID: ${prediction.id}</span>` : '';
         
-        // 创建结果内容
         item.innerHTML = `
             <div class="category-icon">${categoryIcon}</div>
             <div class="prediction-details">
-                <div class="prediction-label">${getChineseName(prediction.class)}</div>
+                <div class="prediction-label">${getChineseName(prediction.class)} ${trackIdText}</div>
                 <div class="prediction-score">置信度: ${Math.round(prediction.score * 100)}%</div>
             </div>
         `;
         
-        predictionsContainer.appendChild(item);
+        // Highlight this list item if its originalIndex matches highlightedPredictionIndex
+        if (prediction.originalIndex === highlightedPredictionIndex) {
+            item.classList.add('highlighted-list-item');
+        }
 
-        // Add click listener to list item for highlighting
         item.addEventListener('click', () => {
             // Remove highlight from previously highlighted list item
             const currentlyHighlightedListItem = predictionsContainer.querySelector('.highlighted-list-item');

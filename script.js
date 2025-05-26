@@ -179,10 +179,19 @@ async function init() {
         console.log('cocoSsd library found.');
 
         // 加载模型
-        model = await cocoSsd.load();
-        console.log('COCO-SSD模型加载成功!');
-        if (cameraPlaceholder) { // Clear loading message
-            cameraPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">点击开始识别</div>';
+        try {
+            console.log('Attempting to load COCO-SSD model...');
+            model = await cocoSsd.load(); // Keep this await
+            console.log('COCO-SSD model loaded successfully!');
+            if (cameraPlaceholder) {
+                cameraPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">点击开始识别</div>';
+            }
+        } catch (modelLoadError) {
+            console.error('COCO-SSD Model Load Error:', modelLoadError.name, modelLoadError.message, modelLoadError.stack);
+            if (cameraPlaceholder) {
+                cameraPlaceholder.innerHTML = `<div style="color: red; padding: 10px;">AI模型加载失败: (${modelLoadError.name}: ${modelLoadError.message})。请检查网络连接和浏览器控制台。</div>`;
+            }
+            throw modelLoadError; // Re-throw the error so the outer catch block handles UI for general init failure
         }
 
         if (startBtn) startBtn.disabled = false; // Enable start button after model loads

@@ -17,11 +17,21 @@
     box-sizing: border-box;
 }
 
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overscroll-behavior-y: contain; /* 防止在移动设备上滚动链 */
+}
+
 body {
-    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    line-height: 1.6;
-    color: var(--text-light);
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
     background-color: var(--background-dark);
+    color: var(--text-light);
+    line-height: 1.6;
+    display: flex; /* 使用Flexbox布局 */
+    flex-direction: column; /* 主轴方向为垂直 */
+    min-height: 100vh; /* 确保body至少和视口一样高 */
     background-image: 
         radial-gradient(circle at 25% 25%, rgba(0, 112, 243, 0.1) 0%, transparent 50%),
         radial-gradient(circle at 75% 75%, rgba(121, 40, 202, 0.1) 0%, transparent 50%);
@@ -282,11 +292,14 @@ button:hover:not(:disabled) {
 footer {
     text-align: center;
     padding: 1rem;
-    margin-top: 2rem;
+    /* margin-top: 2rem; */ /* 移除或调整，因为flex布局会处理空间 */
     background: linear-gradient(90deg, #0a1429 0%, #1e3a8a 100%);
     color: white;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     letter-spacing: 0.5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0; /* 防止footer在内容不足时收缩 */
+    width: 100%; /* 确保页脚宽度正确 */
 }
 
 @media (min-width: 768px) {
@@ -1337,4 +1350,10 @@ footer {
         font-size: 16px !important;
         text-align: center !important;
     }
+}
+
+main {
+    flex: 1 0 auto; /* 让main区域占据剩余空间 */
+    padding: 1rem;
+    max-width: 1200px;
 } 

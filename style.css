@@ -57,12 +57,13 @@ body.light-theme {
 
 header {
     background: linear-gradient(90deg, #0a1429 0%, #1e3a8a 100%);
-    color: white; /* Remains white for dark header */
-    padding: 0.8rem;
+    color: white;
+    padding: 0.3rem 0.5rem; /* 更小的内边距 */
     text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 10px rgba(0, 112, 243, 0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 0 6px rgba(0, 112, 243, 0.12);
     position: relative;
     overflow: hidden;
+    min-height: 38px;
 }
 
 header::before {
@@ -77,56 +78,59 @@ header::before {
 }
 
 h1 {
-    font-size: 1.4rem;
+    font-size: 1.05rem; /* 更小的标题字号 */
     margin: 0;
-    letter-spacing: 1px;
-    text-shadow: 0 0 10px rgba(0, 200, 255, 0.5);
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 6px rgba(0, 200, 255, 0.3);
+    font-weight: 600;
 }
 
 nav {
-    margin: 0.7rem 0;
+    margin: 0.2rem 0 0.1rem 0; /* 更小的上下间距 */
 }
 
 nav a {
-    color: white; /* Remains white for dark header */
+    color: white;
     text-decoration: none;
-    margin: 0 0.5rem;
-    padding: 0.4rem 1rem;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    transition: all 0.3s ease;
+    margin: 0 0.2rem;
+    padding: 0.2rem 0.7rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
     position: relative;
-    backdrop-filter: blur(4px);
-    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(3px);
+    background-color: rgba(255, 255, 255, 0.08);
+    line-height: 1.2;
 }
 
 nav a.active, nav a:hover {
     background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-    box-shadow: 0 0 15px rgba(0, 112, 243, 0.5);
-    color: white; /* Ensure text color on active/hover is white */
+    box-shadow: 0 0 8px rgba(0, 112, 243, 0.3);
+    color: white;
 }
 
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 1rem;
+    padding: 0.5rem 0.5rem 0 0.5rem;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 1rem;
+    align-items: flex-start;
 }
 
 /* 视频容器样式 - 最简单的样式结构 */
 .camera-container {
-    position: relative;
-    width: 100%;
-    max-width: 100%;
+    flex: 3 1 0%;
+    max-width: 75%;
+    min-width: 350px;
     margin: 0 auto;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     overflow: hidden;
     background-color: #000;
     aspect-ratio: 16/9;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 /* 视频元素样式 - 使用最简单的定位和尺寸设置 */
@@ -275,11 +279,13 @@ body.light-theme #currentModeIndicator {
 }
 
 .results {
-    padding: 1.2rem;
+    flex: 1 1 0%;
+    max-width: 320px;
+    min-width: 220px;
+    padding: 0.7rem;
     background: rgba(25, 25, 35, 0.7);
     border-radius: 10px;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
@@ -380,116 +386,43 @@ footer {
     }
 }
 
-@media (max-width: 768px) {
-    body {
-        padding: 0;
-        margin: 0;
-    }
-    
-    header {
-        padding: 0.5rem;
-    }
-    
-    h1 {
-        font-size: 1.2rem;
-    }
-    
-    nav {
-        margin: 0.4rem 0;
-    }
-    
-    nav a {
-        padding: 0.3rem 0.8rem;
-        font-size: 0.85rem;
-    }
-    
+@media (max-width: 1024px) {
     .container {
-        padding: 0.5rem;
-        gap: 0.5rem;
-        display: flex;
         flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.3rem;
     }
-    
     .camera-container {
-        max-height: 55vh !important;
-        width: 100% !important;
-        margin: 0 auto 0.3rem !important;
-        border-width: 1px !important;
-        border-style: solid !important;
-        border-color: rgba(255, 255, 255, 0.1) !important;
-        overflow: hidden !important;
-        position: relative !important;
-        display: block !important;
+        max-width: 100%;
+        min-width: 0;
+        margin-bottom: 0.5rem;
     }
-    
-    .controls {
-        padding: 0.4rem;
-        margin-bottom: 0.3rem;
-        flex-wrap: nowrap;
-        justify-content: space-between;
-    }
-    
-    button {
-        padding: 0.6rem 1rem;
-        font-size: 0.9rem;
-        min-width: 80px;
-    }
-    
     .results {
-        max-height: 40vh;
-        overflow-y: auto;
-        padding: 0.6rem;
+        max-width: 100%;
+        min-width: 0;
+        margin-top: 0.2rem;
     }
-    
-    .results h2 {
-        font-size: 1rem;
-        margin-bottom: 0.4rem;
-        position: sticky;
-        top: 0;
-        background: inherit;
-        padding: 0.3rem 0;
-        z-index: 5;
+}
+
+@media (max-width: 600px) {
+    header {
+        padding: 0.15rem 0.2rem;
+        min-height: 28px;
     }
-    
-    #predictions {
-        gap: 0.4rem;
-    }
-    
-    .prediction-item {
-        padding: 0.5rem 0.7rem;
-        margin-bottom: 0.4rem;
-    }
-    
-    .category-icon {
-        font-size: 1rem;
-        margin-right: 0.5rem;
-    }
-    
-    .prediction-label {
+    h1 {
         font-size: 0.9rem;
     }
-    
-    .prediction-score {
+    nav a {
         font-size: 0.75rem;
+        padding: 0.15rem 0.4rem;
+        margin: 0 0.1rem;
     }
-    
-    video, #canvas {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        border: none !important;
-        outline: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-        background-clip: content-box !important;
-        object-fit: cover !important;
-        transform: translateZ(0) !important;
-        -webkit-transform: translateZ(0) !important;
-        will-change: transform !important;
+    .container {
+        padding: 0.1rem;
+        gap: 0.2rem;
+    }
+    .camera-container {
+        aspect-ratio: 4/3;
     }
 }
 

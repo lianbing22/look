@@ -1481,13 +1481,9 @@ function getChineseName(className) {
     return chineseNames[className] || className;
 }
 
-// 显示保存对话框
+// 显示保存对话框（只保存识别物体区域）
 function showSaveDialog() {
-    // The main canvas should always have the content to be saved (video frame + drawing OR uploaded image + drawing)
-    // No need to check isStreaming if canvas is always the source of truth for save.
-    // Ensure there's something to save.
-    if (!canvas || (currentPredictions.length === 0 && !isStreaming && video.style.display === 'none')) { 
-        // Latter condition: if not streaming (no active camera) AND video element is hidden (image mode) AND no predictions
+    if (!canvas || currentPredictions.length === 0) {
         alert('没有可保存的识别结果。');
         return;
     }
@@ -1807,4 +1803,71 @@ function showPredictionDetail(prediction) {
     modal.querySelector('.history-modal-close').onclick = () => document.body.removeChild(modal);
     modal.onclick = (e) => { if (e.target === modal) document.body.removeChild(modal); };
     document.body.appendChild(modal);
-} 
+}
+
+// 导出识别数据
+function exportDetectionData(format = 'csv') {
+    // 获取当前筛选后的识别结果
+    const selectedCats = getSelectedCategories();
+    let data = [...currentPredictions];
+    if (selectedCats && selectedCats.length > 0) {
+        data = data.filter(p => selectedCats.includes(p.class));
+    }
+    if (!data.length) {
+        alert('当前无可导出的识别结果');
+        return;
+    }
+    if (format === 'csv') {
+        // CSV表头
+        const header = ['类别','英文','置信度','ID','边框[x,y,w,h]'];
+        const rows = data.map(p => [
+            getChineseName(p.class),
+            p.class,
+            Math.round(p.score * 100) + '%',
+            (p.id !== undefined && p.id !== -1) ? p.id : '',
+            p.bbox.map(x => x.toFixed(0)).join(',')
+        ]);
+        const csv = [header, ...rows].map(r => r.join(',')).join('\r\n');
+        const blob = new Blob([csv], {type: 'text/csv'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'detection_result.csv';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    } else if (format === 'json') {
+        const json = JSON.stringify(data.map(p => ({
+            class: p.class,
+            chineseClass: getChineseName(p.class),
+            score: p.score,
+            id: (p.id !== undefined && p.id !== -1) ? p.id : null,
+            bbox: p.bbox
+        })), null, 2);
+        const blob = new Blob([json], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'detection_result.json';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+    }
+}
+
+// 绑定导出按钮事件
+window.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('exportDataBtn');
+    if (btn) {
+        btn.onclick = () => {
+            // 简单弹窗选择格式
+            const format = window.prompt('请选择导出格式：csv 或 json', 'csv');
+            if (!format) return;
+            if (format.toLowerCase() === 'csv' || format.toLowerCase() === 'json') {
+                exportDetectionData(format.toLowerCase());
+            } else {
+                alert('仅支持 csv 或 json 格式');
+            }
+        };
+    }
+}); 

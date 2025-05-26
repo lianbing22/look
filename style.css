@@ -176,7 +176,8 @@ nav a.active, nav a:hover {
 }
 
 button {
-    padding: 0.6rem 1.5rem;
+    padding: 0.6rem 1.2rem;
+    min-width: 90px;
     border: none;
     border-radius: 6px;
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
@@ -366,12 +367,9 @@ footer {
     }
     
     button {
-        font-size: 13px;
-        padding: 0.35rem 0.7rem;
-        flex: 1;
-        max-width: 30%;
-        margin: 0 0.15rem;
-        white-space: nowrap;
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+        min-width: 80px;
     }
     
     .results {
@@ -795,8 +793,9 @@ footer {
     }
     
     button {
-        font-size: 13px;
-        padding: 0.35rem 0.8rem;
+        padding: 0.5rem 0.8rem;
+        font-size: 0.8rem;
+        min-width: 70px;
     }
     
     .results {
@@ -886,10 +885,10 @@ footer {
     }
     
     .controls button {
-        width: 100%;
-        max-width: 100%;
-        margin: 0.1rem 0;
-        padding: 0.3rem 0.5rem;
+        flex-grow: 1;
+        flex-basis: 0;
+        text-align: center;
+        white-space: nowrap;
     }
     
     .results {

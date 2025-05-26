@@ -28,6 +28,8 @@ let historyContent;
 let uploadImageTriggerBtn;
 let uploadImageInput;
 let uploadedImageDisplay;
+let themeToggleBtn; // Theme toggle button
+let currentModeIndicator; // Mode indicator element
 
 // 全局变量
 let model = null;
@@ -134,6 +136,8 @@ async function init() {
     uploadImageTriggerBtn = $('uploadImageTriggerBtn');
     uploadImageInput = $('uploadImageInput');
     uploadedImageDisplay = $('uploadedImageDisplay');
+    themeToggleBtn = $('themeToggleBtn'); // Get the theme toggle button
+    currentModeIndicator = $('currentModeIndicator'); // Get mode indicator
 
     if (uploadImageTriggerBtn) {
         uploadImageTriggerBtn.disabled = true; // Disable initially
@@ -142,6 +146,19 @@ async function init() {
     console.log('Loading settings from storage...');
     loadSettingsFromStorage(); // Load settings from localStorage
     console.log('Settings loaded.');
+
+    // Load initial theme
+    loadTheme();
+
+    // Initialize mode indicator
+    if (currentModeIndicator) {
+        currentModeIndicator.textContent = '当前模式：摄像头实时识别';
+    }
+    // Set initial active button state (startBtn should be active initially)
+    if (startBtn && !startBtn.disabled) {
+        startBtn.classList.add('active-btn');
+    }
+    if (stopBtn) stopBtn.classList.remove('active-btn');
 
     // Ensure cameraPlaceholder is visible for loading messages
     if (cameraPlaceholder && (cameraPlaceholder.style.display === 'none' || !cameraPlaceholder.style.display)) {
@@ -383,6 +400,39 @@ function setupEventListeners() {
     if (uploadImageInput) {
         uploadImageInput.addEventListener('change', handleImageUpload);
     }
+
+    // Theme toggle button event listener
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', toggleTheme);
+    }
+}
+
+// Function to load and apply saved theme or default
+function loadTheme() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        if (themeToggleBtn) themeToggleBtn.innerHTML = '🌙'; // Moon for dark mode switch
+    } else {
+        // Default to dark theme if no preference or preference is dark
+        document.body.classList.remove('light-theme');
+        if (themeToggleBtn) themeToggleBtn.innerHTML = '☀️'; // Sun for light mode switch
+    }
+}
+
+// Function to toggle theme
+function toggleTheme() {
+    document.body.classList.toggle('light-theme');
+    let newTheme;
+    if (document.body.classList.contains('light-theme')) {
+        newTheme = 'light';
+        if (themeToggleBtn) themeToggleBtn.innerHTML = '🌙';
+    } else {
+        newTheme = 'dark';
+        if (themeToggleBtn) themeToggleBtn.innerHTML = '☀️';
+    }
+    localStorage.setItem('theme', newTheme);
+    console.log('Theme changed to:', newTheme);
 }
 
 // Handle image upload and detection
@@ -426,19 +476,26 @@ async function handleImageUpload(event) {
                 updatePredictionsList(imagePredictions);
 
                 if (saveBtn) saveBtn.disabled = false;
-                if (stopBtn) stopBtn.disabled = true; // No "stop" for static image
+                if (stopBtn) {
+                    stopBtn.disabled = true;
+                    stopBtn.classList.remove('active-btn');
+                }
                 if (startBtn) {
                     startBtn.textContent = '返回摄像头模式';
                     startBtn.disabled = false; // Allow switching back to camera
+                    startBtn.classList.add('active-btn');
                 }
                 isStreaming = false; // Explicitly set, as stopDetection might be preparing for camera stream
+                if (currentModeIndicator) currentModeIndicator.textContent = '当前模式：图片识别';
             } catch (error) {
                 console.error("Error during image detection:", error);
                 alert("图片识别失败，请检查控制台获取更多信息。");
                 // Optionally, revert to camera mode or clear canvas
-                if (startBtn) startBtn.textContent = '开始识别';
+                if (startBtn) {
+                    startBtn.textContent = '开始识别';
+                    startBtn.classList.remove('active-btn');
+                }
                 if (predictions) predictions.innerHTML = '<div class="prediction-item">图片识别失败</div>';
-
             }
         };
         img.onerror = () => {
@@ -681,8 +738,14 @@ async function startDetection() {
             
             // 更新状态
             isStreaming = true;
-            if (startBtn) startBtn.disabled = true;
-            if (stopBtn) stopBtn.disabled = false;
+            if (startBtn) {
+                startBtn.disabled = true;
+                startBtn.classList.remove('active-btn');
+            }
+            if (stopBtn) {
+                stopBtn.disabled = false;
+                stopBtn.classList.add('active-btn');
+            }
             if (saveBtn) saveBtn.disabled = false;
             
             // 开始检测循环
@@ -710,8 +773,14 @@ async function startDetection() {
             isStreaming = false;
             if (stream) stream.getTracks().forEach(track => track.stop());
             stream = null;
-            if (startBtn) startBtn.disabled = false;
-            if (stopBtn) stopBtn.disabled = true;
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.classList.add('active-btn');
+            }
+            if (stopBtn) {
+                stopBtn.disabled = true;
+                stopBtn.classList.remove('active-btn');
+            }
             if (saveBtn) saveBtn.disabled = true;
             if (cameraPlaceholder && (cameraPlaceholder.style.display === 'none' || !cameraPlaceholder.style.display) && video.style.display !== 'none') {
                  cameraPlaceholder.style.display = 'flex';
@@ -743,8 +812,14 @@ async function startDetection() {
                     isStreaming = false;
                     if (stream) stream.getTracks().forEach(track => track.stop()); // 确保停止流
                     stream = null;
-                    if (startBtn) startBtn.disabled = false;
-                    if (stopBtn) stopBtn.disabled = true;
+                    if (startBtn) {
+                        startBtn.disabled = false;
+                        startBtn.classList.add('active-btn');
+                    }
+                    if (stopBtn) {
+                        stopBtn.disabled = true;
+                        stopBtn.classList.remove('active-btn');
+                    }
                     if (cameraPlaceholder && video.style.display !== 'none') cameraPlaceholder.style.display = 'flex'; // Show placeholder if video was meant to be visible
                 });
             }
@@ -774,8 +849,14 @@ async function startDetection() {
         
         // 恢复状态
         isStreaming = false;
-        if (startBtn) startBtn.disabled = false;
-        if (stopBtn) stopBtn.disabled = true;
+        if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.classList.add('active-btn');
+        }
+        if (stopBtn) {
+            stopBtn.disabled = true;
+            stopBtn.classList.remove('active-btn');
+        }
         if (saveBtn) saveBtn.disabled = true;
     }
 }
@@ -813,8 +894,12 @@ function stopDetection() {
     if (startBtn) {
         startBtn.disabled = false;
         startBtn.textContent = '开始识别'; // Ensure text is reset
+        startBtn.classList.add('active-btn');
     }
-    if (stopBtn) stopBtn.disabled = true;
+    if (stopBtn) {
+        stopBtn.disabled = true;
+        stopBtn.classList.remove('active-btn');
+    }
     if (saveBtn) saveBtn.disabled = true; // Disable save when stopping, unless image mode re-enables
 }
 

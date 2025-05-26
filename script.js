@@ -143,7 +143,14 @@ async function init() {
     loadSettingsFromStorage(); // Load settings from localStorage
     console.log('Settings loaded.');
 
-    console.log('正在初始化应用...');
+    // Ensure cameraPlaceholder is visible for loading messages
+    if (cameraPlaceholder && (cameraPlaceholder.style.display === 'none' || !cameraPlaceholder.style.display)) {
+        cameraPlaceholder.style.display = 'flex';
+    }
+
+    if (cameraPlaceholder) {
+        cameraPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">正在初始化应用...</div>';
+    }
     
     try {
         // 检查基本元素是否可用
@@ -168,7 +175,7 @@ async function init() {
         
         console.log('正在加载COCO-SSD模型...');
         if (cameraPlaceholder) {
-            cameraPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">正在加载 AI 模型...</div>';
+            cameraPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">正在加载 AI 模型，请稍候...</div>';
         }
         
         // 检查TensorFlow和COCO-SSD是否可用
@@ -189,7 +196,13 @@ async function init() {
         } catch (modelLoadError) {
             console.error('COCO-SSD Model Load Error:', modelLoadError.name, modelLoadError.message, modelLoadError.stack);
             if (cameraPlaceholder) {
-                cameraPlaceholder.innerHTML = `<div style="color: red; padding: 10px;">AI模型加载失败: (${modelLoadError.name}: ${modelLoadError.message})。请检查网络连接和浏览器控制台。</div>`;
+                cameraPlaceholder.innerHTML = `
+                    <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-weight: bold; margin-bottom: 10px;">AI 模型加载失败</div>
+                        <div style="font-size: 14px;">${modelLoadError.name}: ${modelLoadError.message}</div>
+                        <div style="font-size: 12px; margin-top: 10px;">请检查您的网络连接，并确保浏览器允许加载脚本。如问题持续，请尝试刷新页面。</div>
+                        <button onclick="location.reload()" style="margin-top: 15px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer;">刷新页面</button>
+                    </div>`;
             }
             throw modelLoadError; // Re-throw the error so the outer catch block handles UI for general init failure
         }
@@ -217,8 +230,8 @@ async function init() {
             cameraPlaceholder.innerHTML = `
                 <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
                     <div style="font-weight: bold; margin-bottom: 10px;">初始化失败</div>
-                    <div style="font-size: 14px;">${error.message}</div>
-                    <button onclick="location.reload()" style="margin-top: 10px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 5px 10px; border-radius: 4px;">刷新页面</button>
+                    <div style="font-size: 14px;">${error.message || '未知错误'}</div>
+                    <button onclick="location.reload()" style="margin-top: 15px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer;">刷新页面</button>
                 </div>
             `;
         } else {
@@ -555,6 +568,13 @@ async function startDetection() {
     }
     currentPredictions = [];
 
+    // Ensure cameraPlaceholder is visible for loading/error messages
+    if (cameraPlaceholder && (cameraPlaceholder.style.display === 'none' || !cameraPlaceholder.style.display)) {
+        cameraPlaceholder.style.display = 'flex';
+    }
+    if (cameraPlaceholder) {
+        cameraPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">准备启动摄像头...</div>';
+    }
 
     if (isStreaming) return; // Already streaming or trying to start.
     if (!video || !canvas || !ctx) {
@@ -603,6 +623,20 @@ async function startDetection() {
                     audio: false
                 });
             } catch (fallbackError) {
+                console.error('摄像头备用访问失败:', fallbackError.name, fallbackError.message);
+                if (cameraPlaceholder) {
+                    cameraPlaceholder.innerHTML = `
+                        <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="font-weight: bold; margin-bottom: 10px;">摄像头访问失败</div>
+                            <div style="font-size: 14px;">${fallbackError.name}: ${fallbackError.message}</div>
+                            <div style="font-size: 12px; margin-top: 10px;">请确保您已授予摄像头权限，并且没有其他应用正在使用摄像头。尝试刷新页面或检查浏览器设置。</div>
+                            <button onclick="location.reload()" style="margin-top: 15px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer;">刷新页面</button>
+                        </div>`;
+                }
+                // Reset button states
+                if (startBtn) startBtn.disabled = false;
+                if (stopBtn) stopBtn.disabled = true;
+                if (saveBtn) saveBtn.disabled = true;
                 throw new Error('无法访问摄像头: ' + fallbackError.message);
             }
         }
@@ -664,6 +698,24 @@ async function startDetection() {
         // 添加错误处理
         video.onerror = (e) => {
             console.error('视频加载错误:', e);
+            if (cameraPlaceholder) {
+                cameraPlaceholder.innerHTML = `
+                    <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
+                        <div style="font-weight: bold; margin-bottom: 10px;">视频流错误</div>
+                        <div style="font-size: 14px;">视频播放时遇到问题。</div>
+                        <button onclick="location.reload()" style="margin-top: 15px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer;">刷新页面</button>
+                    </div>`;
+            }
+            // Reset button states
+            isStreaming = false;
+            if (stream) stream.getTracks().forEach(track => track.stop());
+            stream = null;
+            if (startBtn) startBtn.disabled = false;
+            if (stopBtn) stopBtn.disabled = true;
+            if (saveBtn) saveBtn.disabled = true;
+            if (cameraPlaceholder && (cameraPlaceholder.style.display === 'none' || !cameraPlaceholder.style.display) && video.style.display !== 'none') {
+                 cameraPlaceholder.style.display = 'flex';
+            }
             throw new Error('视频加载失败');
         };
         
@@ -676,9 +728,16 @@ async function startDetection() {
                     console.log('Video playback started successfully.');
                 }).catch(error => {
                     console.error('视频播放失败 (playPromise.catch): ', error.name, error.message, error.stack);
-                    alert('视频播放失败: ' + error.message + '。请确保已授予摄像头权限，并尝试刷新页面。');
+                    // alert('视频播放失败: ' + error.message + '。请确保已授予摄像头权限，并尝试刷新页面。'); // Replaced by placeholder message
                     if (cameraPlaceholder) {
-                        cameraPlaceholder.innerHTML = `<div style="color: red; padding: 10px;">视频播放启动失败 (${error.name}: ${error.message})。请检查摄像头权限并刷新。</div>`;
+                        cameraPlaceholder.innerHTML = `
+                            <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-weight: bold; margin-bottom: 10px;">视频播放启动失败</div>
+                                <div style="font-size: 14px;">${error.name}: ${error.message}</div>
+                                <div style="font-size: 12px; margin-top: 10px;">请确保已授予摄像头权限，或摄像头未被其他应用占用。</div>
+                                <button onclick="startDetection()" style="margin-top: 15px; background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-right: 5px;">重试</button>
+                                <button onclick="location.reload()" style="margin-top: 15px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer;">刷新页面</button>
+                            </div>`;
                     }
                     // 可能需要重置UI状态
                     isStreaming = false;
@@ -704,7 +763,13 @@ async function startDetection() {
         console.error('启动检测失败 (startDetection function):', error.name, error.message, error.stack);
         alert('无法访问摄像头或启动检测: ' + error.message + '。请检查权限并刷新。');
         if (cameraPlaceholder) {
-             cameraPlaceholder.innerHTML = `<div style="color: red; padding: 10px;">无法启动检测 (${error.name}: ${error.message})。请检查摄像头权限并刷新。</div>`;
+             cameraPlaceholder.innerHTML = `
+                <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-weight: bold; margin-bottom: 10px;">无法启动检测</div>
+                    <div style="font-size: 14px;">${error.name}: ${error.message}</div>
+                     <div style="font-size: 12px; margin-top: 10px;">请检查摄像头权限或尝试刷新页面。</div>
+                    <button onclick="location.reload()" style="margin-top: 15px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer;">刷新页面</button>
+                </div>`;
         }
         
         // 恢复状态
@@ -736,6 +801,9 @@ function stopDetection() {
     
     // 显示占位符
     cameraPlaceholder.style.display = 'flex';
+    if (cameraPlaceholder) { // Ensure placeholder text is reset
+        cameraPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">点击开始识别</div>';
+    }
     
     // 清空画布
     ctx.clearRect(0, 0, canvas.width, canvas.height);

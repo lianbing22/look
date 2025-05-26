@@ -900,8 +900,8 @@ function loadHistoryFromStorage() {
                 `).join('')}
             </div>
             <div class="history-actions">
-                <button class="history-action-btn view-btn" data-id="${record.id}">查看</button>
-                <button class="history-action-btn delete-btn" data-id="${record.id}">删除</button>
+                <button class="history-action-btn view-btn" data-id="${record.id}"><span class="material-icons">visibility</span>查看</button>
+                <button class="history-action-btn delete-btn" data-id="${record.id}"><span class="material-icons">delete</span>删除</button>
             </div>
         `;
         

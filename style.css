@@ -1,14 +1,23 @@
+/* 1. Reset/Base Styles */
 :root {
-    --primary-color: #0070f3;
-    --secondary-color: #00c8ff;
-    --accent-color: #7928ca;
-    --background-dark: #121212;
-    --text-light: #f0f0f0;
-    --text-dark: #333;
-    --success-color: #10b981;
-    --warning-color: #f59e0b;
-    --danger-color: #ef4444;
-    --info-color: #3b82f6;
+    --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    --font-family-monospace: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+
+    --color-primary: #1a73e8; /* Google Blue */
+    --color-primary-dark: #1259b8;
+    --color-accent: #188038; /* Google Green for accents if needed */
+    --color-text-primary: #202124; /* Dark Gray for text */
+    --color-text-secondary: #5f6368; /* Medium Gray for secondary text */
+    --color-background: #ffffff; /* White background */
+    --color-surface: #f8f9fa; /* Light gray for surfaces like cards or sections */
+    --color-border: #dadce0;
+    --color-error: #d93025; /* Google Red */
+    --color-success: #1e8e3e; /* Google Green */
+
+    --spacing-unit: 8px;
+    --border-radius: 4px;
+    --header-height: 64px;
+    --max-content-width: 1200px;
 }
 
 * {
@@ -17,114 +26,182 @@
     box-sizing: border-box;
 }
 
+html {
+    font-size: 16px; /* Base font size */
+    -webkit-text-size-adjust: 100%;
+}
+
 body {
-    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-family: var(--font-family-sans);
     line-height: 1.6;
-    color: var(--text-light);
-    background-color: var(--background-dark);
-    background-image: 
-        radial-gradient(circle at 25% 25%, rgba(0, 112, 243, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 75% 75%, rgba(121, 40, 202, 0.1) 0%, transparent 50%);
-}
-
-header {
-    background: linear-gradient(90deg, #0a1429 0%, #1e3a8a 100%);
-    color: white;
-    padding: 0.8rem;
-    text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 0 10px rgba(0, 112, 243, 0.2);
-    position: relative;
-    overflow: hidden;
-}
-
-header::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--secondary-color), var(--accent-color));
-    z-index: 2;
-}
-
-h1 {
-    font-size: 1.4rem;
-    margin: 0;
-    letter-spacing: 1px;
-    text-shadow: 0 0 10px rgba(0, 200, 255, 0.5);
-}
-
-nav {
-    margin: 0.7rem 0;
-}
-
-nav a {
-    color: white;
-    text-decoration: none;
-    margin: 0 0.5rem;
-    padding: 0.4rem 1rem;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    transition: all 0.3s ease;
-    position: relative;
-    backdrop-filter: blur(4px);
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-nav a.active, nav a:hover {
-    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-    box-shadow: 0 0 15px rgba(0, 112, 243, 0.5);
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 1rem;
+    color: var(--color-text-primary);
+    background-color: var(--color-background);
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    min-height: 100vh;
 }
 
-/* 视频容器样式 - 最简单的样式结构 */
-.camera-container {
+/* 2. Typography & General Elements */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 500;
+    line-height: 1.2;
+    margin-bottom: calc(var(--spacing-unit) * 2);
+}
+h1 { font-size: 1.75rem; } /* ~28px */
+h2 { font-size: 1.25rem; } /* ~20px */
+h3 { font-size: 1.125rem; } /* ~18px */
+
+p {
+    margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+a:hover {
+    color: var(--color-primary-dark);
+    text-decoration: underline;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+.material-icons {
+    font-family: 'Material Icons';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px; /* Preferred icon size */
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    vertical-align: middle; /* Align icons with text nicely */
+}
+
+/* Utility class from previous attempts, keep it */
+.hidden {
+    display: none !important;
+}
+
+/* 3. Layout (Header, Main, Footer, Sections) */
+.app-header {
+    background-color: var(--color-background);
+    border-bottom: 1px solid var(--color-border);
+    height: var(--header-height);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.app-header__container {
+    max-width: var(--max-content-width);
+    margin: 0 auto;
+    padding: 0 calc(var(--spacing-unit) * 2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+}
+
+.app-header__title {
+    font-size: 1.25rem; /* ~20px */
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.app-header__nav-link {
+    color: var(--color-text-secondary);
+    padding: calc(var(--spacing-unit) * 1) calc(var(--spacing-unit) * 2);
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.2s ease-in-out;
+}
+.app-header__nav-link:hover {
+    background-color: rgba(0,0,0,0.05);
+    color: var(--color-text-primary);
+    text-decoration: none;
+}
+.app-header__nav-link.active {
+    color: var(--color-primary);
+    /* background-color: rgba(var(--color-primary-rgb), 0.1); /* Optional light background for active */
+}
+
+.app-main {
+    flex-grow: 1;
+    padding: calc(var(--spacing-unit) * 3) calc(var(--spacing-unit) * 2);
+    max-width: var(--max-content-width);
+    width: 100%;
+    margin: 0 auto;
+    display: grid; /* Using grid for overall layout of sections */
+    grid-template-columns: 1fr; /* Default single column */
+    gap: calc(var(--spacing-unit) * 3);
+}
+
+/* For larger screens, maybe a two-column layout */
+@media (min-width: 960px) {
+    .app-main {
+        grid-template-columns: 2fr 1fr; /* Camera/Controls on left, Results on right */
+        grid-template-areas:
+            "camera controls"
+            "camera results";
+    }
+    .app-section--camera { grid-area: camera; }
+    .app-section--controls { grid-area: controls; }
+    .app-section--results { grid-area: results; }
+}
+
+.app-section {
+    /* Common styling for sections, can be enhanced with borders or backgrounds */
+}
+
+.app-footer {
+    text-align: center;
+    padding: calc(var(--spacing-unit) * 2);
+    font-size: 0.875rem; /* ~14px */
+    color: var(--color-text-secondary);
+    border-top: 1px solid var(--color-border);
+}
+.app-footer p {
+    margin-bottom: var(--spacing-unit);
+}
+
+/* 4. Components */
+
+/* Camera View */
+.camera-view {
+    width: 100%;
+}
+.camera-view__container { /* This is #cameraContainer */
     position: relative;
     width: 100%;
-    max-width: 100%;
-    margin: 0 auto;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-    overflow: hidden;
-    background-color: #000;
     aspect-ratio: 16/9;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-/* 视频元素样式 - 使用最简单的定位和尺寸设置 */
-#video {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
     background-color: #000;
-    z-index: 1;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
 }
-
-/* 画布元素样式 - 简单的定位和尺寸 */
-#canvas {
+#video, #canvas {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: transparent;
-    z-index: 2;
 }
+#video { object-fit: cover; z-index: 1; }
+#canvas { z-index: 2; }
 
-/* 占位符样式 */
-.camera-placeholder {
+.camera-placeholder { /* This is #cameraPlaceholder */
     position: absolute;
     top: 0;
     left: 0;
@@ -138,1228 +215,288 @@ nav a.active, nav a:hover {
     color: white;
     z-index: 5;
     text-align: center;
-    gap: 15px;
+    gap: calc(var(--spacing-unit) * 2);
 }
-
-.camera-placeholder div {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-}
-
-.camera-placeholder span {
-    font-size: 1.2rem;
-    text-shadow: 0 0 10px rgba(0, 200, 255, 0.7);
-}
-
-.controls {
-    padding: 0.8rem;
-    display: flex;
-    justify-content: center;
-    gap: 1.5rem;
-    background: rgba(25, 25, 35, 0.7);
-    border-radius: 8px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-button {
-    padding: 0.6rem 1.5rem;
-    border: none;
-    border-radius: 6px;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: white;
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: 500;
-    letter-spacing: 0.5px;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 10px rgba(0, 112, 243, 0.3);
-    position: relative;
-    overflow: hidden;
-    display: inline-flex; /* Added */
-    align-items: center; /* Added */
-    justify-content: center; /* Added */
-    text-align: center; /* Added for robustness */
-    gap: 0.3em; /* Added for spacing between icon and text */
-}
-
-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: 0.5s;
-}
-
-button:hover::before {
-    left: 100%;
-}
-
-button:disabled {
-    background: #2d3748;
-    box-shadow: none;
-    cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 112, 243, 0.4);
-}
-
-#startBtn {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-}
-
-#stopBtn {
-    background: linear-gradient(135deg, #e11d48, #f43f5e);
-}
-
-.results {
-    padding: 1.2rem;
-    background: rgba(25, 25, 35, 0.7);
-    border-radius: 10px;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.results h2 {
-    margin-bottom: 1rem;
-    color: var(--text-light);
-    font-size: 1.3rem;
-    letter-spacing: 0.5px;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-#predictions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.8rem;
-}
-
-.prediction-item {
-    padding: 0.8rem 1rem;
-    border-left: 4px solid var(--primary-color);
-    background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-    margin-bottom: 0.6rem;
-    display: flex;
-    align-items: center;
-}
-
-.prediction-item:hover {
-    transform: translateX(5px);
-    background-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
-}
-
-/* 添加分类图标和详情的样式 */
-.category-icon {
-    font-style: normal;
-    font-size: 1.2rem;
-    margin-right: 0.8rem;
-}
-
-.prediction-details {
-    flex: 1;
-}
-
-.prediction-label {
-    font-weight: bold;
-    color: var(--text-light);
-    margin-bottom: 0.2rem;
-}
-
-.prediction-score {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-footer {
-    text-align: center;
-    padding: 1rem;
-    margin-top: 2rem;
-    background: linear-gradient(90deg, #0a1429 0%, #1e3a8a 100%);
-    color: white;
-    font-size: 0.8rem;
-    letter-spacing: 0.5px;
-}
-
-@media (min-width: 768px) {
-    .container {
-        flex-direction: row;
-    }
-    
-    .camera-container {
-        flex: 1;
-    }
-    
-    .results {
-        flex: 1;
-    }
-}
-
-@media (max-width: 768px) {
-    body {
-        padding: 0;
-        margin: 0;
-    }
-    
-    header {
-        padding: 0.5rem;
-    }
-    
-    h1 {
-        font-size: 1.2rem;
-    }
-    
-    nav {
-        margin: 0.4rem 0;
-    }
-    
-    nav a {
-        padding: 0.3rem 0.8rem;
-        font-size: 0.85rem;
-    }
-    
-    .container {
-        padding: 0.5rem;
-        gap: 0.5rem;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .camera-container {
-        width: 100% !important;
-        aspect-ratio: 16/9 !important; /* This will determine height based on width */
-        /* max-height: 55vh !important; */ /* REMOVED to avoid conflict */
-        margin: 0 auto 0.3rem !important;
-        border-width: 1px !important;
-        border-style: solid !important;
-        border-color: rgba(255, 255, 255, 0.1) !important;
-        overflow: hidden !important;
-        position: relative !important;
-        display: block !important; 
-    }
-    
-    .controls {
-        padding: 0.4rem;
-        margin-bottom: 0.3rem;
-        flex-wrap: nowrap;
-        justify-content: space-between;
-    }
-    
-    button {
-        font-size: 13px;
-        padding: 0.4rem 1rem; /* Increased horizontal padding */
-        min-height: 2.5em; /* Minimum height to accommodate text comfortably */
-        flex: 1; 
-        margin: 0 0.15rem;
-        display: inline-flex; 
-        align-items: center; 
-        justify-content: center;
-        text-align: center; /* Explicitly center text */
-        gap: 0.3em; /* Added for spacing between icon and text */
-    }
-
-    #refreshBtn i { /* Style for the icon if needed */
-        margin: 0; /* Remove any default/previously set margins */
-        padding: 0; /* Remove any default padding */
-        display: inline-block; /* Stabilize layout contribution */
-        /* margin-right: 4px; /* REMOVED THIS LINE if present */ 
-    }
-    
-    .results {
-        max-height: 40vh;
-        overflow-y: auto;
-        padding: 0.6rem;
-    }
-    
-    .results h2 {
-        font-size: 1rem;
-        margin-bottom: 0.4rem;
-        position: sticky;
-        top: 0;
-        background: inherit;
-        padding: 0.3rem 0;
-        z-index: 5;
-    }
-    
-    #predictions {
-        gap: 0.4rem;
-    }
-    
-    .prediction-item {
-        padding: 0.5rem 0.7rem;
-        margin-bottom: 0.4rem;
-    }
-    
-    .category-icon {
-        font-size: 1rem;
-        margin-right: 0.5rem;
-    }
-    
-    .prediction-label {
-        font-size: 0.9rem;
-    }
-    
-    .prediction-score {
-        font-size: 0.75rem;
-    }
-    
-    video, #canvas {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        border: none !important;
-        outline: none !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-        background-clip: content-box !important;
-        object-fit: cover !important;
-        transform: translateZ(0) !important;
-        -webkit-transform: translateZ(0) !important;
-        will-change: transform !important;
-    }
-}
-
-@media (max-width: 375px) {
-    .camera-container {
-        max-height: 40vh;
-    }
-    
-    button {
-        padding: 0.35rem 0.8rem; /* Increased horizontal padding */
-        font-size: 12px;
-        min-height: 2.5em; /* Minimum height */
-        text-align: center; /* Explicitly center text */
-        gap: 0.3em; /* Added for spacing between icon and text */
-        /* display: inline-flex, align-items, justify-content are inherited if not overridden by more specific rules for this breakpoint */
-    }
-    
-    .prediction-item {
-        padding: 0.4rem 0.6rem;
-    }
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* 加载指示器 */
 .loading-spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid rgba(255,255,255,.1);
+    border: 4px solid rgba(255,255,255,.3);
     border-radius: 50%;
-    border-top-color: var(--primary-color);
-    border-left-color: var(--secondary-color);
-    animation: spin 1s ease-in-out infinite;
+    border-top-color: #fff;
+    animation: spin 1s linear infinite;
 }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* 帮助覆盖层样式 */
-.help-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.85);
-    z-index: 1000;
-    display: none; /* 默认隐藏 */
-    justify-content: center;
+/* Controls Bar */
+.controls-bar { /* This is #controlsBar */
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+    gap: calc(var(--spacing-unit) * 2);
     align-items: center;
-    backdrop-filter: blur(4px);
+    padding: var(--spacing-unit);
+    background-color: var(--color-surface);
+    border-radius: var(--border-radius);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
 }
-
-.help-content {
-    width: 90%;
-    max-width: 800px;
-    max-height: 90vh;
-    overflow-y: auto;
-    background: linear-gradient(135deg, #192231 0%, #24344d 100%);
-    border-radius: 10px;
-    padding: 2rem;
-    position: relative;
-    box-shadow: 0 0 40px rgba(0, 112, 243, 0.3), 0 0 5px rgba(0, 200, 255, 0.5);
-    border: 1px solid rgba(0, 200, 255, 0.2);
-}
-
-.help-content::-webkit-scrollbar {
-    width: 8px;
-}
-
-.help-content::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-}
-
-.help-content::-webkit-scrollbar-thumb {
-    background: rgba(0, 112, 243, 0.5);
-    border-radius: 4px;
-}
-
-.help-content h2 {
-    color: var(--text-light);
-    font-size: 1.6rem;
-    margin-bottom: 1.5rem;
-    text-align: center;
-    letter-spacing: 1px;
-    text-shadow: 0 0 10px rgba(0, 200, 255, 0.5);
-}
-
-.close-btn {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: white;
-    font-size: 1.5rem;
-    cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    transition: all 0.3s ease;
-}
-
-.close-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: rotate(90deg);
-}
-
-.help-steps {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.help-step {
-    display: flex;
-    gap: 1rem;
-    padding: 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    border-left: 3px solid var(--primary-color);
-    transition: transform 0.3s ease;
-}
-
-.help-step:hover {
-    transform: translateX(5px);
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.step-number {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 30px;
-    height: 30px;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: white;
-    border-radius: 50%;
-    font-weight: bold;
-    flex-shrink: 0;
-}
-
-.step-content h3 {
-    color: var(--secondary-color);
-    margin-bottom: 0.5rem;
-    font-size: 1.1rem;
-}
-
-.step-content p {
-    color: var(--text-light);
-    line-height: 1.6;
-    font-size: 0.95rem;
-}
-
-.help-tips {
-    background: rgba(0, 112, 243, 0.1);
-    border-radius: 8px;
-    padding: 1.2rem;
-    margin-bottom: 1.5rem;
-}
-
-.help-tips h3 {
-    color: var(--secondary-color);
-    margin-bottom: 0.8rem;
-    font-size: 1.1rem;
-}
-
-.help-tips ul {
-    padding-left: 1.2rem;
-}
-
-.help-tips li {
-    color: var(--text-light);
-    margin-bottom: 0.6rem;
-    line-height: 1.5;
-    font-size: 0.95rem;
-}
-
-.tutorial-btn {
-    display: block;
-    width: 100%;
-    padding: 0.8rem;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
+.control-button {
+    font-family: var(--font-family-sans);
+    font-size: 0.875rem; /* ~14px */
     font-weight: 500;
-    letter-spacing: 0.5px;
-    transition: all 0.3s ease;
-}
-
-.tutorial-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 112, 243, 0.4);
-}
-
-/* 帮助覆盖层动画 */
-.help-overlay.active {
-    display: flex;
-    animation: fade-in 0.3s ease forwards;
-}
-
-@keyframes fade-in {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-/* 大屏幕桌面设备布局优化 */
-@media (min-width: 1200px) {
-    .container {
-        max-width: 1400px;
-        padding: 1.5rem;
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 2rem;
-    }
-    
-    .camera-container {
-        flex: 1;
-        max-width: 65%;
-        margin-right: 1rem;
-    }
-    
-    .controls {
-        order: 3;
-        flex: 0 0 100%;
-        justify-content: flex-start;
-        padding-left: calc(65% - 15rem);
-    }
-    
-    .results {
-        flex: 0 0 30%;
-        max-height: calc(100vh - 15rem);
-        overflow-y: auto;
-    }
-    
-    .results h2 {
-        position: sticky;
-        top: 0;
-        background: inherit;
-        padding: 1rem 0;
-        z-index: 5;
-        margin-top: 0;
-    }
-    
-    #predictions {
-        max-height: calc(100vh - 20rem);
-        overflow-y: auto;
-        padding-right: 0.5rem;
-    }
-    
-    #predictions::-webkit-scrollbar {
-        width: 6px;
-    }
-    
-    #predictions::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.05);
-    }
-    
-    #predictions::-webkit-scrollbar-thumb {
-        background: rgba(0, 112, 243, 0.3);
-        border-radius: 3px;
-    }
-    
-    #predictions::-webkit-scrollbar-thumb:hover {
-        background: rgba(0, 112, 243, 0.5);
-    }
-    
-    /* 增强视觉层次感 */
-    .camera-container {
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 0 0 25px rgba(0, 112, 243, 0.4);
-    }
-    
-    .prediction-item {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    
-    .prediction-item:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-    
-    /* 改进按钮大小和间距 */
-    button {
-        padding: 0.8rem 2rem;
-        font-size: 1.1rem;
-    }
-    
-    /* 更宽敞的结果项 */
-    .prediction-item {
-        padding: 1rem 1.2rem;
-        margin-bottom: 0.8rem;
-    }
-}
-
-/* 超宽屏幕优化 */
-@media (min-width: 1600px) {
-    .container {
-        max-width: 1800px;
-    }
-    
-    .camera-container {
-        max-width: 70%;
-    }
-    
-    .controls {
-        padding-left: calc(70% - 18rem);
-    }
-    
-    .results {
-        flex: 0 0 25%;
-    }
-    
-    h1 {
-        font-size: 1.8rem;
-    }
-    
-    nav a {
-        font-size: 1.1rem;
-        padding: 0.5rem 1.5rem;
-    }
-}
-
-/* 为不同分辨率设备添加更多适配规则 */
-
-/* 小型手机设备 (小于480px) */
-@media (max-width: 480px) {
-    header {
-        padding: 0.4rem;
-    }
-    
-    h1 {
-        font-size: 1.1rem;
-    }
-    
-    nav {
-        margin: 0.3rem 0;
-    }
-    
-    nav a {
-        padding: 0.25rem 0.6rem;
-        font-size: 0.8rem;
-        margin: 0 0.3rem;
-    }
-    
-    .container {
-        padding: 0.4rem;
-        gap: 0.6rem;
-    }
-    
-    .camera-container {
-        aspect-ratio: 3/4;
-    }
-    
-    .controls {
-        padding: 0.5rem;
-        gap: 0.8rem;
-    }
-    
-    button {
-        font-size: 13px;
-        padding: 0.35rem 0.8rem;
-    }
-    
-    .results {
-        padding: 0.8rem;
-    }
-    
-    .results h2 {
-        font-size: 1.1rem;
-        margin-bottom: 0.6rem;
-    }
-    
-    .prediction-item {
-        padding: 0.5rem 0.8rem;
-    }
-    
-    .help-step {
-        padding: 0.8rem;
-    }
-    
-    .help-content {
-        padding: 1.5rem;
-    }
-    
-    .step-content h3 {
-        font-size: 1rem;
-    }
-    
-    .step-content p {
-        font-size: 0.85rem;
-    }
-}
-
-/* 平板设备 (768px-1024px) */
-@media (min-width: 768px) and (max-width: 1024px) {
-    .container {
-        padding: 0.8rem;
-    }
-    
-    .camera-container {
-        aspect-ratio: 4/3;
-    }
-    
-    .results {
-        max-height: 400px;
-        overflow-y: auto;
-    }
-    
-    .results h2 {
-        position: sticky;
-        top: 0;
-        background: inherit;
-        padding: 0.8rem 0;
-        z-index: 5;
-    }
-}
-
-/* 横屏模式特殊处理 */
-@media (max-width: 896px) and (orientation: landscape) {
-    .container {
-        display: grid;
-        grid-template-columns: 1fr 320px;
-        grid-gap: 0.5rem;
-        padding: 0.4rem;
-        height: calc(100vh - 120px); /* 减去头部和页脚的高度 */
-        overflow: hidden;
-    }
-    
-    .camera-container {
-        grid-column: 1;
-        grid-row: 1 / span 2;
-        aspect-ratio: 16/9;
-        max-height: 100%;
-        width: 100%;
-        margin: 0;
-    }
-    
-    .controls {
-        grid-column: 2;
-        grid-row: 1;
-        flex-direction: column;
-        padding: 0.4rem;
-        margin: 0;
-        justify-content: center;
-        align-items: stretch;
-        gap: 0.4rem;
-        background: rgba(25, 25, 35, 0.6);
-    }
-    
-    .controls button {
-        width: 100%;
-        max-width: 100%;
-        margin: 0.1rem 0;
-        padding: 0.3rem 0.5rem;
-    }
-    
-    .results {
-        grid-column: 2;
-        grid-row: 2;
-        max-height: calc(100vh - 180px);
-        overflow-y: auto;
-        padding: 0.5rem;
-        margin: 0;
-        background: rgba(25, 25, 35, 0.6);
-    }
-    
-    /* 隐藏底部页脚 */
-    footer {
-        display: none;
-    }
-    
-    /* 缩小头部 */
-    header {
-        padding: 0.3rem;
-    }
-    
-    h1 {
-        font-size: 1rem;
-    }
-    
-    nav {
-        margin: 0.2rem 0;
-    }
-    
-    nav a {
-        padding: 0.2rem 0.6rem;
-        font-size: 0.8rem;
-    }
-}
-
-/* 中等大小的桌面显示器 (1024px-1440px) */
-@media (min-width: 1024px) and (max-width: 1440px) {
-    .container {
-        max-width: 1100px;
-        padding: 1.2rem;
-        gap: 1.5rem;
-    }
-    
-    .camera-container {
-        flex: 3;
-    }
-    
-    .results {
-        flex: 2;
-    }
-}
-
-/* 高分辨率设备优化 */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    .camera-focus {
-        border-width: 1.5px;
-    }
-    
-    .prediction-item {
-        border-left-width: 3px;
-    }
-}
-
-/* 折叠屏/可变宽度设备支持 */
-@supports (display: flex) and (gap: 1rem) {
-    @media (max-width: 600px) {
-        .container {
-            gap: 0.7rem;
-            flex-wrap: wrap;
-        }
-        
-        .controls {
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-    }
-}
-
-/* 深色模式优化 - 为未来主题切换功能做准备 */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --background-dark: #0a0a0a;
-    }
-    
-    .camera-container {
-        border-color: rgba(255, 255, 255, 0.15);
-    }
-    
-    .form-group, .results, .controls, .status-info {
-        background: rgba(20, 20, 30, 0.75);
-    }
-}
-
-/* 保存按钮样式 */
-#saveBtn {
-    background: linear-gradient(135deg, #10b981, #059669);
-}
-
-#saveBtn:disabled {
-    background: #2d3748;
-}
-
-/* 历史记录图标样式 */
-.history-link {
+    padding: calc(var(--spacing-unit) * 1.25) calc(var(--spacing-unit) * 2.5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    background-color: var(--color-background);
+    color: var(--color-primary);
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-left: 10px;
-    color: var(--text-light);
-    text-decoration: none;
-    font-size: 0.85rem;
-    opacity: 0.7;
-    transition: all 0.3s ease;
-    vertical-align: middle;
+    gap: var(--spacing-unit); /* Space for icon and text */
 }
-
-.history-link:hover {
-    opacity: 1;
-    transform: scale(1.1);
+.control-button:hover {
+    background-color: rgba(0,0,0,0.03);
+    border-color: #c6c6c6;
 }
-
-.history-icon {
-    font-style: normal;
+.control-button:active {
+    background-color: rgba(0,0,0,0.05);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
 }
-
-/* 历史记录面板样式 */
-.history-panel {
-    position: fixed;
-    top: 0;
-    right: -400px;
-    width: 350px;
-    height: 100%;
-    background: rgba(15, 23, 42, 0.95);
-    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.3);
-    z-index: 1000;
-    transition: right 0.3s ease;
-    overflow-y: auto;
-    padding: 1.5rem;
-    backdrop-filter: blur(10px);
+.control-button:disabled {
+    color: rgba(0,0,0,0.38);
+    background-color: rgba(0,0,0,0.05);
+    border-color: var(--color-border);
+    cursor: not-allowed;
+    box-shadow: none;
 }
-
-.history-panel.active {
-    right: 0;
+.control-button--icon .material-icons {
+    font-size: 20px; /* Slightly smaller icon for buttons */
 }
+/* Specific button colors if needed */
+#startBtn { background-color: var(--color-primary); color: white; border-color: var(--color-primary); }
+#startBtn:hover { background-color: var(--color-primary-dark); border-color: var(--color-primary-dark); }
+#stopBtn { background-color: var(--color-error); color: white; border-color: var(--color-error); }
+#stopBtn:hover { background-color: #b0241a; border-color: #b0241a; }
 
-.history-header {
+
+/* Results Area */
+.results-area { /* This is #resultsArea */
+    padding: calc(var(--spacing-unit) * 2);
+    background-color: var(--color-surface);
+    border-radius: var(--border-radius);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+.results-area__title {
+    font-size: 1.125rem; /* ~18px */
+    color: var(--color-text-primary);
+    margin-bottom: calc(var(--spacing-unit) * 2);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
-
-.history-header h3 {
-    margin: 0;
-    color: var(--text-light);
-    font-size: 1.2rem;
+.history-link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-primary);
+    display: inline-flex;
+    align-items: center;
+    gap: calc(var(--spacing-unit) * 0.5);
 }
+.history-link:hover {
+    color: var(--color-primary-dark);
+    text-decoration: none;
+}
+.predictions-list { /* This is #predictions */
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-unit);
+}
+.prediction-item { /* Style for individual prediction items */
+    padding: var(--spacing-unit) calc(var(--spacing-unit) * 1.5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    background-color: var(--color-background);
+    font-size: 0.875rem;
+    /* Add structure for icon, label, score if needed from original script.js logic */
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-unit);
+}
+.category-icon { font-size: 1.2rem; } /* From script.js */
+.prediction-details { flex: 1; }
+.prediction-label { font-weight: 500; }
+.prediction-score { font-size: 0.8rem; color: var(--color-text-secondary); }
 
-.history-close {
+
+/* History Panel */
+.history-panel { /* This is #historyPanel */
+    position: fixed;
+    top: 0;
+    right: -360px; /* Hidden by default */
+    width: 350px;
+    height: 100%;
+    background-color: var(--color-background);
+    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+    z-index: 200;
+    transition: right 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    padding: calc(var(--spacing-unit) * 2);
+}
+.history-panel.active {
+    right: 0;
+}
+.history-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: calc(var(--spacing-unit) * 2);
+    padding-bottom: var(--spacing-unit);
+    border-bottom: 1px solid var(--color-border);
+}
+.history-panel__header h3 { margin: 0; }
+.history-panel__content { /* This is #historyContent */
+    flex-grow: 1;
+    overflow-y: auto;
+}
+.history-empty {
+    color: var(--color-text-secondary);
+    text-align: center;
+    padding: calc(var(--spacing-unit) * 2) 0;
+}
+.history-item { /* Structure from script.js */
+    padding: var(--spacing-unit);
+    margin-bottom: var(--spacing-unit);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+}
+.history-item-image { max-width: 100px; margin-bottom: var(--spacing-unit); } /* Example style */
+.history-panel__clear-button { /* This is #historyClearBtn */
+    margin-top: calc(var(--spacing-unit) * 2);
+    width: 100%;
+    padding: calc(var(--spacing-unit) * 1.25);
+    background-color: var(--color-error);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    cursor: pointer;
+}
+.history-panel__clear-button:hover { background-color: #b0241a; }
+
+/* Icon Button (for close buttons) */
+.icon-button {
     background: none;
     border: none;
-    color: var(--text-light);
+    color: var(--color-text-secondary);
     cursor: pointer;
-    font-size: 1.5rem;
-    padding: 0.2rem;
-    transition: all 0.3s ease;
+    padding: var(--spacing-unit);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.icon-button:hover {
+    background-color: rgba(0,0,0,0.05);
+    color: var(--color-text-primary);
 }
 
-.history-close:hover {
-    transform: rotate(90deg);
-    color: var(--danger-color);
-}
-
-.history-empty {
-    text-align: center;
-    padding: 2rem 0;
-    color: rgba(255, 255, 255, 0.5);
-    font-style: italic;
-}
-
-.history-item {
-    background: rgba(30, 41, 59, 0.5);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    transition: all 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.history-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    border-color: rgba(0, 112, 243, 0.3);
-}
-
-.history-item-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.8rem;
-}
-
-.history-timestamp {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.6);
-}
-
-.history-item-image {
-    width: 100%;
-    height: 150px;
-    object-fit: cover;
-    border-radius: 4px;
-    margin-bottom: 0.8rem;
-}
-
-.history-item-info {
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 0.5rem;
-}
-
-.history-item-objects {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.8rem;
-}
-
-.history-item-tag {
-    background: rgba(0, 112, 243, 0.3);
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    white-space: nowrap;
-}
-
-.history-actions {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 0.8rem;
-}
-
-.history-action-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    color: var(--text-light);
-    padding: 0.3rem 0.7rem;
-    font-size: 0.8rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.history-action-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-.history-action-btn.delete {
-    color: var(--danger-color);
-}
-
-.history-clear {
-    display: block;
-    width: 100%;
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    color: var(--danger-color);
-    text-align: center;
-    padding: 0.7rem;
-    margin-top: 1.5rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.history-clear:hover {
-    background: rgba(239, 68, 68, 0.3);
-}
-
-/* 移动设备历史面板优化 */
-@media (max-width: 480px) {
-    .history-panel {
-        width: 100%;
-        right: -100%;
-    }
-}
-
-/* 保存确认对话框 */
-.save-dialog {
+/* Help Overlay */
+.help-overlay { /* This is #helpOverlay */
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    justify-content: center;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 300;
+    display: none; /* Hidden by default, JS will toggle */
     align-items: center;
-    z-index: 1100;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(5px);
+    justify-content: center;
+    padding: calc(var(--spacing-unit) * 2);
+}
+.help-overlay__content {
+    background-color: var(--color-background);
+    padding: calc(var(--spacing-unit) * 3);
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    max-width: 600px;
+    width: 100%;
+    position: relative;
+}
+.help-overlay__close-button {
+    position: absolute;
+    top: var(--spacing-unit);
+    right: var(--spacing-unit);
 }
 
-.save-dialog.active {
-    opacity: 1;
-    visibility: visible;
+/* Save Dialog */
+.save-dialog {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); display: none; /* Hidden by default */
+    align-items: center; justify-content: center; z-index: 300;
 }
-
+.save-dialog.active { display: flex; }
 .save-dialog-content {
-    width: 90%;
-    max-width: 500px;
-    background: #1e293b;
-    border-radius: 10px;
-    padding: 1.5rem;
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--color-background); padding: calc(var(--spacing-unit) * 3);
+    border-radius: var(--border-radius); max-width: 400px; width: 90%;
+}
+.save-preview { width: 100%; height: auto; max-height: 200px; object-fit: contain; margin-bottom: var(--spacing-unit); border: 1px solid var(--color-border); }
+.save-form-group { margin-bottom: var(--spacing-unit) * 2; }
+.save-form-group label { display: block; margin-bottom: var(--spacing-unit); font-weight: 500; }
+.save-form-group input { width: 100%; padding: var(--spacing-unit); border: 1px solid var(--color-border); border-radius: var(--border-radius); }
+.save-dialog-actions { display: flex; justify-content: flex-end; gap: var(--spacing-unit); }
+.save-dialog-btn { /* Use .control-button styles or define new */
+    padding: calc(var(--spacing-unit)*1) calc(var(--spacing-unit)*2);
+    border-radius: var(--border-radius); border: 1px solid var(--color-border);
+    cursor: pointer; font-weight: 500;
+}
+.save-dialog-btn.save { background-color: var(--color-primary); color: white; border-color: var(--color-primary); }
+.save-dialog-btn.cancel { background-color: transparent; color: var(--color-text-secondary); }
+
+
+/* 5. Responsive Adjustments (Media Queries) */
+@media (max-width: 959px) { /* Tablet and Mobile */
+    .app-main {
+        padding: calc(var(--spacing-unit) * 2);
+        gap: calc(var(--spacing-unit) * 2);
+    }
+    .app-section--controls { order: 1; } /* Move controls below camera on smaller screens if not using grid areas for this */
+    .app-section--camera { order: 2; }
+    .app-section--results { order: 3; }
 }
 
-.save-dialog h3 {
-    margin-top: 0;
-    color: var(--text-light);
-    margin-bottom: 1rem;
-    text-align: center;
-}
+@media (max-width: 600px) { /* Mobile */
+    .app-header__container {
+        padding: 0 var(--spacing-unit);
+        flex-direction: column;
+        height: auto;
+        padding-bottom: var(--spacing-unit);
+    }
+    .app-header__title { margin-bottom: var(--spacing-unit); margin-top: var(--spacing-unit); }
+    .app-header__nav { width: 100%; display: flex; justify-content: space-around; }
+    .app-header__nav-link { padding: var(--spacing-unit); flex-grow: 1; text-align: center;}
 
-.save-preview {
-    width: 100%;
-    height: 200px;
-    object-fit: contain;
-    margin-bottom: 1rem;
-    border-radius: 8px;
-    background: #0f172a;
-}
+    .app-main {
+        padding: var(--spacing-unit);
+    }
 
-.save-form-group {
-    margin-bottom: 1rem;
-}
+    .controls-bar {
+        flex-direction: column; /* Stack buttons vertically */
+    }
+    .control-button {
+        width: 100%; /* Make buttons full width in column */
+    }
 
-.save-form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: var(--text-light);
-}
-
-.save-form-group input {
-    width: 100%;
-    padding: 0.7rem;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(15, 23, 42, 0.8);
-    color: var(--text-light);
-}
-
-.save-dialog-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
-    margin-top: 1.5rem;
-}
-
-.save-dialog-btn {
-    padding: 0.6rem 1.2rem;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.save-dialog-btn.cancel {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-light);
-}
-
-.save-dialog-btn.save {
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: white;
-}
-
-.save-dialog-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
-/* 专门针对iOS设备的样式覆盖 */
-@supports (-webkit-touch-callout: none) {
-    .camera-container {
-        position: relative !important;
-        width: 100% !important;
-        height: auto !important;
-        aspect-ratio: 16/9 !important;
-        background-color: #000 !important;
-        overflow: hidden !important;
-        box-shadow: none !important;
-        transform: translateZ(0) !important;
-        -webkit-transform: translateZ(0) !important;
-        will-change: transform !important;
-        z-index: 1 !important;
+    .results-area__title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-unit);
     }
     
-    #video {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover !important;
-        background-color: #000 !important;
-        z-index: 1 !important;
-        transform: translateZ(0) !important;
-        -webkit-transform: translateZ(0) !important;
-        will-change: transform !important;
-        margin: 0 !important;
-        padding: 0 !important;
+    .history-panel {
+        width: 100%;
+        right: -100%; /* Full width slide-in */
     }
-    
-    #canvas {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 2 !important;
-        background: transparent !important; 
-        transform: translateZ(0) !important;
-        -webkit-transform: translateZ(0) !important;
-        will-change: transform !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    
-    /* 移除任何额外的元素 */
-    .camera-container > *:not(#video):not(#canvas):not(#cameraPlaceholder) {
-        display: none !important;
-    }
-    
-    /* 确保占位符显示正确 */
-    .camera-placeholder {
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 10 !important;
-        background-color: rgba(0, 0, 0, 0.8) !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    
-    .loading-text {
-        margin-top: 15px !important;
-        color: white !important;
-        font-size: 16px !important;
-        text-align: center !important;
-    }
-}
-
-.hidden {
-    display: none !important;
 }

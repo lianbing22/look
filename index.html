@@ -2,309 +2,170 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>恒泰视觉 AI 识别系统 - 实时物体识别</title>
-    <meta name="description" content="恒泰视觉AI识别系统是一款基于TensorFlow.js的实时物体识别应用，支持80多种常见物体的检测，无需安装即可在浏览器中使用。">
+    <meta name="description" content="恒泰视觉AI识别系统是一款基于TensorFlow.js的实时物体识别应用。">
     <meta name="keywords" content="AI识别,物体检测,TensorFlow.js,计算机视觉,人工智能,机器学习,实时识别">
     <meta name="author" content="恒泰科技">
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://yourwebsite.com/">
-    <meta property="og:title" content="恒泰视觉 AI 识别系统">
-    <meta property="og:description" content="在浏览器中实时识别摄像头中的80多种物体，无需安装，简单易用。">
-    <meta property="og:image" content="icons/icon-512x512.png">
 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://yourwebsite.com/">
-    <meta property="twitter:title" content="恒泰视觉 AI 识别系统">
-    <meta property="twitter:description" content="在浏览器中实时识别摄像头中的80多种物体，无需安装，简单易用。">
-    <meta property="twitter:image" content="icons/icon-512x512.png">
-    
-    <!-- Web App Manifest -->
     <link rel="manifest" href="manifest.json">
-    
-    <!-- 禁止自动电话号码识别和链接 -->
-    <meta name="format-detection" content="telephone=no">
-    
-    <!-- iOS Web App Mode -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="恒泰视觉">
-    
-    <!-- iOS图标 -->
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-152x152.png">
-    
-    <!-- 启动画面 -->
-    <link rel="apple-touch-startup-image" href="icons/icon-512x512.png">
-    
-    <!-- Theme Color -->
-    <meta name="theme-color" content="#0a1429">
-    
     <link rel="stylesheet" href="style.css">
+    
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <!-- Assume other PWA icons like icon-512x512, etc., would be here -->
+    <meta name="theme-color" content="#ffffff">
+
     <!-- TensorFlow.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0"></script>
-    <!-- COCO-SSD 模型 -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2"></script>
     
-    <!-- iOS特殊处理 -->
+    <!-- Permissions Policy -->
     <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
-    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
-    <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
     
-    <!-- 阻止浏览器对模型的CORS检查 -->
-    <meta http-equiv="Access-Control-Allow-Origin" content="*">
-    <meta http-equiv="Access-Control-Allow-Headers" content="*">
-
-    <!-- 额外的iOS渲染优化 -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
-    <!-- 强制使用最新渲染引擎 -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-
-    <!-- 禁用自动放大 -->
-    <style>
-        html {
-            -webkit-text-size-adjust: 100%;
-        }
-        /* 防止iOS Safari中的双视频问题 */
-        video, canvas {
-            -webkit-transform: translateZ(0);
-            transform: translateZ(0);
-        }
-    </style>
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
-    <header>
-        <h1>恒泰视觉 AI 识别系统</h1>
-        <nav>
-            <a href="#" class="active">首页</a>
-            <a href="admin/index.html">管理</a>
-            <a href="#" id="helpBtn">帮助</a>
-        </nav>
+    <header class="app-header">
+        <div class="app-header__container">
+            <h1 class="app-header__title">恒泰视觉 AI</h1>
+            <nav class="app-header__nav">
+                <a href="#" class="app-header__nav-link active">首页</a>
+                <a href="admin/index.html" class="app-header__nav-link">管理</a>
+                <a href="#" id="helpBtn" class="app-header__nav-link">帮助</a>
+            </nav>
+        </div>
     </header>
 
-    <main>
-        <div class="container">
-            <!-- 绝对最简化的摄像头容器结构 -->
-            <div class="camera-container" id="cameraContainer">
-                <video id="video" autoplay playsinline muted></video>
-                <canvas id="canvas"></canvas>
-                <div id="cameraPlaceholder" class="camera-placeholder">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">点击开始识别</div>
+    <main class="app-main">
+        <section class="app-section app-section--camera">
+            <div class="camera-view" id="cameraView">
+                <div class="camera-view__container" id="cameraContainer">
+                    <video id="video" autoplay playsinline muted></video>
+                    <canvas id="canvas"></canvas>
+                    <div id="cameraPlaceholder" class="camera-placeholder">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">点击开始识别</div>
+                    </div>
                 </div>
             </div>
-            <div class="controls">
-                <button id="startBtn">开始识别</button>
-                <button id="stopBtn" disabled>停止识别</button>
-                <button id="saveBtn" disabled>保存结果</button>
-                <button id="refreshBtn" title="遇到问题时点击刷新页面"><i>🔄</i> 刷新</button>
+        </section>
+
+        <section class="app-section app-section--controls">
+            <div class="controls-bar" id="controlsBar">
+                <button id="startBtn" class="control-button">
+                    <span class="material-icons">play_arrow</span>开始识别
+                </button>
+                <button id="stopBtn" class="control-button" disabled>
+                    <span class="material-icons">stop</span>停止识别
+                </button>
+                <button id="saveBtn" class="control-button" disabled>
+                    <span class="material-icons">save</span>保存结果
+                </button>
+                <button id="refreshBtn" class="control-button control-button--icon" title="遇到问题时点击刷新页面">
+                    <span class="material-icons">refresh</span> 刷新
+                </button>
             </div>
-            <div class="results">
-                <h2>识别结果 <a href="#" id="historyBtn" class="history-link" title="查看历史记录"><i class="history-icon">📋</i></a></h2>
-                <div id="predictions"></div>
+        </section>
+
+        <section class="app-section app-section--results">
+            <div class="results-area" id="resultsArea">
+                <h2 class="results-area__title">
+                    识别结果
+                    <a href="#" id="historyBtn" class="history-link" title="查看历史记录">
+                        <span class="material-icons">history</span> 历史记录
+                    </a>
+                </h2>
+                <div id="predictions" class="predictions-list">
+                    <!-- Prediction items will be dynamically inserted here -->
+                </div>
             </div>
-        </div>
+        </section>
     </main>
-    
-    <!-- 帮助引导覆盖层 -->
+
+    <!-- History Panel -->
+    <aside id="historyPanel" class="history-panel">
+        <div class="history-panel__header">
+            <h3>识别历史记录</h3>
+            <button id="historyCloseBtn" class="icon-button" aria-label="Close history panel">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <div id="historyContent" class="history-panel__content">
+            <div class="history-empty">暂无保存的识别记录</div>
+        </div>
+        <button id="historyClearBtn" class="button--danger history-panel__clear-button">
+            <span class="material-icons">delete_sweep</span>清空所有历史记录
+        </button>
+    </aside>
+
+    <!-- Help Overlay -->
     <div id="helpOverlay" class="help-overlay">
-        <div class="help-content">
+        <div class="help-overlay__content">
+            <button id="closeHelpBtn" class="icon-button help-overlay__close-button" aria-label="Close help">
+                <span class="material-icons">close</span>
+            </button>
             <h2>使用指南</h2>
-            <button id="closeHelpBtn" class="close-btn">&times;</button>
-            
             <div class="help-steps">
-                <div class="help-step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3>开始使用</h3>
-                        <p>点击"开始识别"按钮启动摄像头并进行实时物体识别。首次使用时，浏览器会请求摄像头权限，请点击"允许"。</p>
-                    </div>
-                </div>
-                
-                <div class="help-step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3>识别物体</h3>
-                        <p>将摄像头对准您想要识别的物体。系统会自动检测画面中的物体，并在右侧显示识别结果。</p>
-                    </div>
-                </div>
-                
-                <div class="help-step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3>调整设置</h3>
-                        <p>点击顶部导航栏中的"管理"按钮，可以调整识别阈值、最大识别数量等参数，根据您的需求进行自定义。</p>
-                    </div>
-                </div>
-                
-                <div class="help-step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h3>结束识别</h3>
-                        <p>识别完成后，点击"停止识别"按钮关闭摄像头并结束识别过程。</p>
-                    </div>
-                </div>
+                <p><strong>第一步:</strong> 点击“开始识别”按钮启动摄像头。</p>
+                <p><strong>第二步:</strong> 将摄像头对准您想要识别的物体。</p>
+                <p><strong>第三步:</strong> 系统将实时显示识别结果。</p>
+                <p><strong>第四步:</strong> 点击“保存结果”以保存当前帧和识别信息。</p>
             </div>
-            
             <div class="help-tips">
-                <h3>小贴士</h3>
+                <h3>小贴士:</h3>
                 <ul>
-                    <li>确保环境光线充足，以提高识别准确率</li>
-                    <li>尽量保持物体在画面中心位置</li>
-                    <li>每次识别最多可同时检测10个物体（可在管理设置中调整）</li>
-                    <li>系统可识别80种常见物体，包括人、动物、交通工具、家具、电子设备等</li>
+                    <li>确保光线充足以获得最佳识别效果。</li>
+                    <li>尽量保持摄像头稳定。</li>
+                    <li>识别结果仅供参考。</li>
                 </ul>
             </div>
-            
-            <button id="startTutorialBtn" class="tutorial-btn">查看详细教程</button>
+            <a href="https://www.example.com/hengtai-vision-tutorial" target="_blank" id="startTutorialBtn" class="button--primary">
+                <span class="material-icons">school</span>查看详细教程
+            </a>
+        </div>
+    </div>
+    
+    <!-- Save Dialog -->
+    <div id="saveDialog" class="save-dialog">
+        <div class="save-dialog-content">
+             <h3>保存识别结果</h3>
+             <img id="savePreview" class="save-preview" src="#" alt="识别结果预览图">
+             <div class="save-form-group">
+                 <label for="saveName">名称:</label>
+                 <input type="text" id="saveName" placeholder="为此识别结果命名 (例如: 客厅场景)">
+             </div>
+             <div class="save-dialog-actions">
+                 <button id="cancelSaveBtn" class="save-dialog-btn cancel">取消</button>
+                 <button id="confirmSaveBtn" class="save-dialog-btn save">
+                     <span class="material-icons">save</span>保存
+                 </button>
+             </div>
         </div>
     </div>
 
-    <footer>
-        <p>&copy; 2025 恒泰视觉 AI 识别系统 | <a href="https://github.com/yourusername/hengtai-vision" target="_blank" rel="noopener">GitHub</a></p>
+    <footer class="app-footer">
+        <p>&copy; <span id="currentYear"></span> 恒泰视觉 AI 识别系统. 版权所有.</p>
+        <p><a href="https://github.com/yourusername/hengtai-vision" target="_blank" rel="noopener">GitHub 项目</a> | <a href="#">隐私政策</a> | <a href="#">服务条款</a></p>
     </footer>
 
     <script src="script.js"></script>
-    
-    <!-- 离线工作支持 -->
     <script>
-        // 注册Service Worker（如果浏览器支持）
+        // Update current year in footer
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+        // Service Worker registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // 先尝试注销旧的Service Worker
-                navigator.serviceWorker.getRegistrations().then(registrations => {
-                    for(let registration of registrations) {
-                        registration.unregister().then(success => {
-                            console.log('Service Worker 注销成功:', success);
-                        }).catch(error => {
-                            console.log('Service Worker 注销失败:', error);
-                        });
-                    }
-                    
-                    // 再注册新的Service Worker
-                    setTimeout(() => {
-                        navigator.serviceWorker.register('service-worker.js')
-                            .then(registration => {
-                                console.log('Service Worker 注册成功:', registration.scope);
-                            })
-                            .catch(error => {
-                                console.log('Service Worker 注册失败:', error);
-                            });
-                    }, 1000);
-                });
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('Service Worker 注册成功，范围:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker 注册失败:', error);
+                    });
             });
         }
-    </script>
-    
-    <!-- 历史记录面板 -->
-    <div id="historyPanel" class="history-panel">
-        <div class="history-header">
-            <h3>识别历史记录</h3>
-            <button id="historyCloseBtn" class="history-close">&times;</button>
-        </div>
-        <div id="historyContent" class="history-content">
-            <!-- 历史记录项将通过JavaScript动态生成 -->
-            <div class="history-empty">暂无保存的识别记录</div>
-        </div>
-        <button id="historyClearBtn" class="history-clear">清空所有历史记录</button>
-    </div>
-    
-    <!-- 保存对话框 -->
-    <div id="saveDialog" class="save-dialog">
-        <div class="save-dialog-content">
-            <h3>保存识别结果</h3>
-            <img id="savePreview" class="save-preview" src="" alt="预览图">
-            <div class="save-form-group">
-                <label for="saveName">名称</label>
-                <input type="text" id="saveName" placeholder="为此识别结果命名">
-            </div>
-            <div class="save-dialog-actions">
-                <button id="cancelSaveBtn" class="save-dialog-btn cancel">取消</button>
-                <button id="confirmSaveBtn" class="save-dialog-btn save">保存</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 添加错误处理脚本 -->
-    <script>
-        // 添加全局错误处理
-        window.addEventListener('error', function(event) {
-            console.error('全局错误:', event.message);
-            if (event.message && event.message.includes('tfjs') || event.message.includes('tensorflow')) {
-                // 显示友好的错误信息
-                const loadingIndicator = document.querySelector('.loading-indicator') || document.getElementById('cameraPlaceholder');
-                if (loadingIndicator) {
-                    loadingIndicator.innerHTML = `
-                        <div style="color: white; background-color: rgba(220, 53, 69, 0.9); padding: 15px; border-radius: 8px; text-align: center;">
-                            <div style="font-weight: bold; margin-bottom: 10px;">模型加载失败</div>
-                            <div style="font-size: 14px;">请尝试使用Safari浏览器或刷新页面重试</div>
-                        </div>
-                    `;
-                }
-            }
-        });
-    </script>
-
-    <!-- 添加Safari建议提示 -->
-    <div id="safariSuggestion" style="display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background-color: rgba(255, 159, 64, 0.95); color: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; text-align: center; max-width: 90%; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
-        <div style="font-weight: bold; margin-bottom: 5px;">推荐使用Safari浏览器</div>
-        <div style="font-size: 14px;">在iOS设备上，Safari浏览器提供更好的AI模型支持</div>
-        <button id="dismissSafariTip" style="margin-top: 8px; background: rgba(255,255,255,0.3); border: none; color: white; padding: 5px 10px; border-radius: 4px;">我知道了</button>
-    </div>
-
-    <!-- 检测iOS Chrome并显示Safari建议 -->
-    <script>
-    (function() {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        const isChrome = /CriOS/.test(navigator.userAgent);
-        if (isIOS && isChrome) {
-            // iOS上的Chrome浏览器
-            setTimeout(() => {
-                const suggestion = document.getElementById('safariSuggestion');
-                if (suggestion) {
-                    suggestion.style.display = 'block';
-                    
-                    // 点击关闭按钮隐藏提示
-                    const dismissBtn = document.getElementById('dismissSafariTip');
-                    if (dismissBtn) {
-                        dismissBtn.addEventListener('click', () => {
-                            suggestion.style.display = 'none';
-                            // 记住用户已关闭提示
-                            localStorage.setItem('safariSuggestionDismissed', 'true');
-                        });
-                    }
-                }
-            }, 2000);
-        }
-    })();
-    </script>
-
-    <!-- 简化版iOS视频修复 -->
-    <script>
-    // 页面加载完成后执行视频元素检查和修复
-    window.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM加载完成，开始检查视频元素...');
-        
-        // 1. 删除可能存在的重复视频元素
-        setTimeout(function() {
-            document.querySelectorAll('video').forEach(function(vid, index) {
-                if (vid.id !== 'video') {
-                    console.log('删除额外视频元素', index);
-                    vid.parentNode.removeChild(vid);
-                }
-            });
-            
-            console.log('视频元素检查完成');
-        }, 100);
-    });
     </script>
 </body>
-</html> 
+</html>

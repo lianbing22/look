@@ -599,9 +599,26 @@ async function handleImageUpload(event) {
             canvas.width = img.naturalWidth;
             canvas.height = img.naturalHeight;
 
-            // Draw image on canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            // 压缩图片（质量0.7，最大宽度800px）
+            const compressedCanvas = document.createElement('canvas');
+            const maxWidth = 800;
+            const scale = Math.min(maxWidth / img.naturalWidth, 1);
+            compressedCanvas.width = img.naturalWidth * scale;
+            compressedCanvas.height = img.naturalHeight * scale;
+            const compressedCtx = compressedCanvas.getContext('2d');
+            compressedCtx.drawImage(img, 0, 0, compressedCanvas.width, compressedCanvas.height);
+            const compressedDataURL = compressedCanvas.toDataURL('image/jpeg', 0.7);
+            
+            // 创建压缩后的图片对象
+            const compressedImg = new Image();
+            compressedImg.onload = () => {
+                // 绘制压缩后的图片到主画布
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(compressedImg, 0, 0, canvas.width, canvas.height);
+                // 继续检测流程
+                detectCompressedImage(compressedImg);
+            };
+            compressedImg.src = compressedDataURL;
 
             console.log('Detecting objects in uploaded image...');
             try {

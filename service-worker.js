@@ -133,6 +133,36 @@ self.addEventListener('fetch', event => {
     return;
   }
   
+  // 对于JPEG图片，使用缓存优先并后台更新策略
+  if (event.request.headers.get('Accept')?.includes('image/jpeg')) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(cachedResponse => {
+          if (cachedResponse) {
+            // 后台更新缓存
+            fetch(event.request)
+              .then(networkResponse => {
+                if (networkResponse && networkResponse.status === 200) {
+                  caches.open(CACHE_NAME)
+                    .then(cache => cache.put(event.request, networkResponse.clone()));
+                }
+              })
+              .catch(() => {});
+            return cachedResponse;
+          }
+          return fetch(event.request)
+            .then(networkResponse => {
+              if (networkResponse && networkResponse.status === 200) {
+                caches.open(CACHE_NAME)
+                  .then(cache => cache.put(event.request, networkResponse.clone()));
+              }
+              return networkResponse;
+            });
+        })
+    );
+    return;
+  }
+  
   // 对于其他资源，使用缓存优先策略
   event.respondWith(
     caches.match(event.request)
@@ -242,4 +272,4 @@ self.addEventListener('notificationclick', event => {
   event.waitUntil(
     clients.openWindow(event.notification.data.url)
   );
-}); 
+});

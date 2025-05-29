@@ -1,0 +1,108 @@
+:root {
+    --primary-color: #0070f3;
+    --secondary-color: #00c8ff;
+    --accent-color: #7928ca;
+    /* Dark Theme (Default) */
+    --background-dark: #121212;
+    --text-light: #f0f0f0;
+    --surface-dark: #1e293b;
+    --border-dark: rgba(255, 255, 255, 0.1);
+    /* Light Theme Variables */
+    --background-light: #f0f2f5;
+    --text-dark-on-light: #212529;
+    --surface-light: #ffffff;
+    --border-light: rgba(0, 0, 0, 0.1);
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --info-color: #3b82f6;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overscroll-behavior-y: contain;
+}
+
+body {
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+header {
+    background: linear-gradient(90deg, #0a1429 0%, #1e3a8a 100%);
+    color: white;
+    padding: 0.3rem 0.5rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 0 6px rgba(0, 112, 243, 0.12);
+    position: relative;
+    overflow: hidden;
+    min-height: 38px;
+    z-index: 10;
+}
+
+header::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--secondary-color), var(--accent-color));
+    z-index: 2;
+}
+
+h1 {
+    font-size: 1.05rem;
+    margin: 0;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 6px rgba(0, 200, 255, 0.3);
+    font-weight: 600;
+}
+
+nav {
+    margin: 0.2rem 0 0.1rem 0;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    margin: 0 0.2rem;
+    padding: 0.2rem 0.7rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    position: relative;
+    backdrop-filter: blur(3px);
+    background-color: rgba(255, 255, 255, 0.08);
+    line-height: 1.2;
+}
+
+nav a.active, nav a:hover {
+    background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+    box-shadow: 0 0 8px rgba(0, 112, 243, 0.3);
+    color: white;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0.5rem 0.5rem 0 0.5rem;
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    align-items: flex-start;
+    width: 100%;
+    min-height: 0;
+}

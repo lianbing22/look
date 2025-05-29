@@ -1,7 +1,5 @@
-// 安全获取DOM元素的工具函数
-function $(id) {
-    return document.getElementById(id);
-}
+// 导入DOM工具模块
+import { $ } from './dom-utils.js';
 
 // DOM元素 - 使用安全的方式获取元素
 let video;
@@ -176,31 +174,20 @@ function updateTrackedObjects(newDetections) {
     return updatedPredictions;
 }
 
-// Function to load settings from localStorage
-function loadSettingsFromStorage() {
-    try {
-        const storedSettingsString = localStorage.getItem('hengtaiVisionSettings');
-        if (storedSettingsString) {
-            const loadedSettings = JSON.parse(storedSettingsString);
+// 导入设置管理模块
+import { loadSettings, saveSettings } from './settings-manager.js';
 
-            if (loadedSettings) {
-                if (loadedSettings.hasOwnProperty('detectionThreshold')) {
-                    settings.confidenceThreshold = parseFloat(loadedSettings.detectionThreshold);
-                }
-                if (loadedSettings.hasOwnProperty('maxDetections')) {
-                    settings.maxDetections = parseInt(loadedSettings.maxDetections, 10);
-                }
-                if (loadedSettings.hasOwnProperty('updateInterval')) {
-                    settings.detectionInterval = parseInt(loadedSettings.updateInterval, 10);
-                     // Also update the detectionInterval for the setInterval if it's already running
-                    if (detectionInterval) {
-                        clearInterval(detectionInterval);
-                        if (isStreaming) { // Only restart if streaming was active
-                           detectionInterval = setInterval(detectObjects, settings.detectionInterval);
-                        }
-                    }
-                }
-                // if (loadedSettings.hasOwnProperty('showBoundingBox')) { // Removed old logic
+// 初始化设置
+let settings = loadSettings();
+
+// 动态帧率控制：根据设备性能设置初始检测间隔
+const isLowEndDevice = navigator.hardwareConcurrency < 4 || (performance.memory?.jsHeapSizeLimit || Infinity) < 512e6;
+settings.detectionInterval = isLowEndDevice ? 1000 : 500;
+
+// 保存设置到localStorage
+function saveSettingsToStorage() {
+    saveSettings(settings);
+}                // if (loadedSettings.hasOwnProperty('showBoundingBox')) { // Removed old logic
                 //     settings.showBoxes = Boolean(loadedSettings.showBoundingBox);
                 //     settings.showLabels = Boolean(loadedSettings.showBoundingBox); 
                 // }
@@ -271,8 +258,24 @@ async function init() {
     loadSettingsFromStorage(); // Load settings from localStorage
     console.log('Settings loaded.');
 
-    // Load initial theme
-    loadTheme();
+    // 加载初始主题
+function loadTheme() {
+    const savedTheme = localStorage.getItem('appTheme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    currentModeIndicator.textContent = `当前模式：${savedTheme === 'dark' ? '深色' : '浅色'}`;
+}
+
+// 切换主题
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('appTheme', newTheme);
+    currentModeIndicator.textContent = `当前模式：${newTheme === 'dark' ? '深色' : '浅色'}`;
+}
+
+// 加载初始主题
+loadTheme();
 
     // Initialize mode indicator
     if (currentModeIndicator) {
@@ -326,10 +329,13 @@ async function init() {
         }
         console.log('cocoSsd library found.');
 
-        // 加载模型
+        // 导入模型加载模块
+import { loadCocoSsdModel } from './model-loader.js';
+
+// 加载模型
         try {
             console.log('Attempting to load COCO-SSD model...');
-            model = await cocoSsd.load(); // Keep this await
+            model = await loadCocoSsdModel(); // 使用模块加载方法
             console.log('COCO-SSD model loaded successfully!');
             if (cameraPlaceholder) {
                 cameraPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">点击开始识别</div>';
@@ -1930,4 +1936,4 @@ async function detectObjects() {
         }
         updatePerformanceStatusUI(avgTime);
     }
-} 
+}
